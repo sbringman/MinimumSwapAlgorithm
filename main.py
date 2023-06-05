@@ -127,7 +127,7 @@ for node in list_nodes:
     # The label part is currently broken
     QUBO_Graph.add_node(node, color='b')
 
-#print(list(QUBO_Graph.nodes[i]['color'] for i in range(num_nodes)))
+# print(list(QUBO_Graph.nodes[i]['color'] for i in range(num_nodes)))
 
 """
 Second Window:
@@ -138,6 +138,7 @@ info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10,
                [sg.Text("Add an edge between nodes:")],
                [sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE1-"),
                 sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE2-")],
+               [sg.Text("", size=(40, 1), key='-ERROR2-')],
                [sg.Text("")],
                ]
 
@@ -162,9 +163,16 @@ while True:
         break
 
     if event == "-ADD_NODE-":
-        QUBO_Graph.add_edge(values["-NODE1-"], values["-NODE2-"])
+        if values["-NODE1-"] == values["-NODE2-"]:
+            window["-ERROR-"].update("Self loops are not allowed in this graph")
+        else:
+            window["-ERROR-"].update("")
+            QUBO_Graph.add_edge(values["-NODE1-"], values["-NODE2-"])
 
-        for i in range(num_nodes):
+            # First, find max number of nodes for red coloring
+            max_degree = max(QUBO_Graph.degree())
+
+        for i in QUBO_Graph.nodes:
 
             # Blue means unconnected
             if QUBO_Graph.degree[i] == 0:
@@ -180,10 +188,14 @@ while True:
             elif QUBO_Graph.degree[i] == 2:
                 QUBO_Graph.nodes[i]['color'] = 'y'
 
-                for node in QUBO_Graph.nodes.adj[i]:
-                    print(node)
+                for node in QUBO_Graph.neighbors(i):
+                    if QUBO_Graph.nodes[node]['color'] == 'g':
+                        QUBO_Graph.nodes[i]['color'] = 'g'
 
-                    # Has more than one node and is not connected back to an end node
+                # Has more than one node and is not connected back to an end node
+            elif QUBO_Graph.degree[i] == max_degree:
+                QUBO_Graph.nodes[i]['color'] = 'r'
+
             else:
                 QUBO_Graph.nodes[i]['color'] = 'y'
 
