@@ -100,7 +100,7 @@ window.close()
 Data Processing the User Input
 """
 
-QUBO_Graph, num_nodes, num_edges, list_nodes = graph_func(num_nodes, values["file"])
+QUBO_Graph, num_nodes, num_edges, list_nodes = graph_func.make_qubo_graph(num_nodes, values["file"])
 
 """
 Second Window:
