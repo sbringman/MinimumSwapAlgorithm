@@ -7,11 +7,6 @@ Created on Sat Jun  3 16:18:25 2023
 """
 
 import PySimpleGUI as sg
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-from pandas import read_csv
-import random
 import sys
 
 # Import from my function program
@@ -20,11 +15,7 @@ import gui_functions as gui_func
 
 """
 To Do:
-    Move the mapping code to the other file
-    Place end tails if the connecting node has no open neighbors
     Start swapping
-    Test if changing the axes will zoom in the images
-    Make the file input work with graphs with the first node labelled 1 instead of 0
 """
 
 
@@ -44,8 +35,8 @@ dummy_window = sg.Window("dummy", [[]], finalize=True)
 base_px = sg.tkinter.font.Font().measure('A')
 f_px = sg.tkinter.font.Font(font=font).measure('A')
 
-graph_width = base_px * 150
-graph_height = base_px * 100
+graph_width = base_px * 10
+graph_height = base_px * 67
 
 dummy_window.close()
 
@@ -54,7 +45,7 @@ sg.theme('DarkTeal7')
 
 # Layout of the first window
 layout = [[sg.Text('Welcome to the Minimum Swap Algorithm Interface!', font=title_font, size=(45, 3))],
-          [sg.Text('How many variables in your QUBO?', size=(28, 1)), sg.InputText('7', key='-INPUT-')],
+          [sg.Text('How many variables in your QUBO?', size=(28, 1)), sg.InputText('24', key='-INPUT-')],
           [sg.Text("", size=(40, 1), key='-ERROR-')],
           [sg.Text("You may also load a file below to preconstruct the edges")],
           [sg.FileBrowse(target='file'), sg.Input('None', key='file')],
@@ -69,8 +60,9 @@ First Window:
 """
 
 # Create the Window
-window = sg.Window('Min Swap Program', layout, finalize=True)
-window.move_to_center() # This doesn't work right for some reason
+window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 300))
+window.refresh()
+window.move_to_center()
 
 # Event Loop to process "events"
 while True:
@@ -102,6 +94,8 @@ Data Processing the User Input
 
 QUBO_Graph, num_nodes, num_edges, list_nodes = graph_func.make_qubo_graph(num_nodes, values["file"])
 
+QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+
 """
 Second Window:
     Putting in the edges
@@ -124,7 +118,8 @@ layout2 = [[sg.Col(info_column), sg.Canvas(size=(graph_width, graph_height), key
            ]
 
 # Create the second window
-window2 = sg.Window('Min Swap Program', layout2, finalize=True)
+window2 = sg.Window('Min Swap Program', layout2, finalize=True, size=(950, 400), margins=(0, 0))
+window2.refresh()
 window2.move_to_center()
 
 # Update the second window
@@ -132,7 +127,11 @@ window2["-NUM_VAR-"].update(num_nodes)
 window2["-NUM_EDGES-"].update(num_edges)
 
 # Draws the initial figure to the window
-fca = gui_func.drawToWindow(window2, QUBO_Graph, 'figCanvas')
+figure2 = gui_func.makePlot(QUBO_Graph)
+figure_agg2 = gui_func.draw_figure(window2['figCanvas'].TKCanvas, figure2)
+
+window2.refresh()
+window2.move_to_center()
 
 # Event Loop to process "events"
 while True:
@@ -152,7 +151,13 @@ while True:
             window2["-NUM_EDGES-"].update(num_edges)
 
     if event == "-UPDATE-":
-        fca = gui_func.updateFigure(fca, window2, QUBO_Graph, 'figCanvas')
+        QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+
+        gui_func.delete_figure_agg(figure_agg2)
+        figure2 = gui_func.makePlot(QUBO_Graph)
+        figure_agg2 = gui_func.draw_figure(window2['figCanvas'].TKCanvas, figure2)
+
+        #fca = gui_func.updateFigure(fca, window2, QUBO_Graph, 'figCanvas')
 
     if event == "Finished":
         break
@@ -196,6 +201,7 @@ Mapping the QUBO to the lattice:
 """
 
 lattice_Graph, QUBO_Graph = graph_func.place_initial_qubits(lattice_Graph, QUBO_Graph)
+lattice_Graph, QUBO_Graph = graph_func.place_green_qubits(lattice_Graph, QUBO_Graph)
 
 """
 Third Window:
@@ -210,14 +216,13 @@ run_time_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR2-', size
 extra_column = [[sg.Text("", size=(27, 1))],
                 ]
 
-layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2')],
-           [sg.Col(extra_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
+layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
            [sg.Exit(key="Exit")],
            [sg.Text("")],
            ]
 
 # Create the second window
-window3 = sg.Window('Min Swap Program', layout3, finalize=True)
+window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1200, 400), margins=(0, 0))
 window3.move_to_center()
 
 # Update the third window
@@ -225,12 +230,15 @@ window3["-NUM_VAR2-"].update(num_nodes)
 window3["-NUM_EDGES2-"].update(num_edges)
 
 # Draws the initial QUBO graph to the window
-fca_qubo = gui_func.drawToWindow(window3, QUBO_Graph, 'figCanvas2')
+figure_q = gui_func.makePlot(QUBO_Graph)
+figure_agg2 = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
 
 # Draws the HH graph to the window
-fca_lattice = gui_func.drawLatticeToWindow(window3, lattice_Graph, 'figCanvas3')
+figure_l = gui_func.makeLatticePlot(lattice_Graph)
+figure_agg2 = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
 
-# Initialize the qubit lattice here
+window3.refresh()
+window3.move_to_center()
 
 # Event Loop to process "events"
 while True:

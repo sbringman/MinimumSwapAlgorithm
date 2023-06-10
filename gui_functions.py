@@ -9,6 +9,35 @@ Created on Wed June 7th
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import PySimpleGUI as sg
+
+
+def draw_figure(canvas, figure):
+    if not hasattr(draw_figure, 'canvas_packed'):
+        draw_figure.canvas_packed = {}
+    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+    figure_canvas_agg.draw()
+    widget = figure_canvas_agg.get_tk_widget()
+    if widget not in draw_figure.canvas_packed:
+        draw_figure.canvas_packed[widget] = figure
+        widget.pack(side='top', fill='both', expand=1)
+    return figure_canvas_agg
+
+def delete_figure_agg(figure_agg):
+    figure_agg.get_tk_widget().forget()
+    try:
+        draw_figure.canvas_packed.pop(figure_agg.get_tk_widget())
+    except Exception as e:
+        print(f'Error removing {figure_agg} from list', e)
+    plt.close('all')
+
+
+def set_scale(scale):
+
+    root = sg.tk.Tk()
+    root.tk.call('tk', 'scaling', scale)
+    root.destroy()
+
 
 # Function to make the plot that will be drawn to the window
 def makePlot(graph):
@@ -18,7 +47,9 @@ def makePlot(graph):
     plt.clf()
 
     # Make and show plot
-    fig = plt.figure('QUBO')
+    fig = plt.figure('QUBO', figsize=(4, 3.5))
+    #print(fig.dpi/75)
+    set_scale(fig.dpi/75)
     axQUBO = plt.axes(facecolor='w')
     axQUBO.set_axis_off()
     nx.draw_networkx(graph, pos=nx.circular_layout(graph), node_color=color_array)
@@ -35,7 +66,9 @@ def makeLatticePlot(graph):
 
     # Make and show plot
     # This plot has a number to differentiate from the QUBO graph
-    fig = plt.figure('lattice')
+    fig = plt.figure('lattice', figsize=(4, 3.5))
+    set_scale(fig.dpi/75)
+
     plt.clf()
 
     axLat = plt.axes(facecolor='w')
@@ -46,39 +79,3 @@ def makeLatticePlot(graph):
 
     return fig
 
-
-# Function that draws the figure for the window
-def drawFigure(canvas, figure):
-    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
-    figure_canvas_agg.draw()
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=True)
-    return figure_canvas_agg
-
-
-# Function that puts the figure on the window
-def drawToWindow(window, graph, key):
-
-    figure = makePlot(graph)
-
-    fca = drawFigure(window[key].TKCanvas, figure)
-
-    return fca
-
-
-# Function that puts the HH plot on the window
-def drawLatticeToWindow(window, graph, key):
-
-    figure = makeLatticePlot(graph)
-
-    fca = drawFigure(window[key].TKCanvas, figure)
-
-    return fca
-
-
-# Function that updates the figure in the window
-def updateFigure(fca, window, graph, key):
-    fca.get_tk_widget().forget()
-
-    fca = drawToWindow(window, graph, key)
-
-    return fca

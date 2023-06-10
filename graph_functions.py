@@ -71,7 +71,6 @@ def color_graph(graph):
         # greater than 2
         elif graph.degree[node] == 1:
             graph.nodes[node]['color'] = 'g'
-            graph.nodes[node]['placed'] = True
             graph.nodes[node]['tail_end'] = True
 
             cur_node = node
@@ -93,7 +92,6 @@ def color_graph(graph):
                     elif graph.degree[next_node] == 2:
                         # print("Colored")
                         graph.nodes[next_node]['color'] = 'g'
-                        graph.nodes[next_node]['placed'] = True
                         prev_nodes.append(next_node)
                         cur_node = next_node
 
@@ -136,97 +134,205 @@ def import_lattice():
 
     for index, row in HH_edges_info.iterrows():
 
-        lattice_graph.add_edge(row['Node1'] - 1, row['Node2'] - 1)
+        lattice_graph.add_edge(row['Node1'], row['Node2'])
     
     return lattice_graph
 
 
-# This places the qubits onto the lattice
+# This just places the nodes onto the graph in the given spot
+def place_node(lattice_Graph, QUBO_Graph, lattice_node, qubo_node):
+    # Places the node
+    lattice_Graph.nodes[lattice_node]['qubit'] = qubo_node
+    lattice_Graph.nodes[lattice_node]['color'] = QUBO_Graph.nodes[qubo_node]['color']
+    lattice_Graph.nodes[lattice_node]['size'] = 300
+
+    QUBO_Graph.nodes[qubo_node]['placed'] = True
+    QUBO_Graph.nodes[qubo_node]['embedded'] = lattice_node
+
+
+# This function finds an open space to place an end tail
+def find_open_node(lattice_Graph, QUBO_Graph, start_node, connecting_node):
+
+    # Transform the connecting_node to the lattice graph
+    connecting_node = QUBO_Graph.nodes[connecting_node]['embedded']
+
+    placement_node = -1
+
+    # This will just start at the connecting qubit and explore all neighbors until
+    # it finds an open spot. It doesn't matter what spot it finds first, because is
+    # checks all possible places to put the end tail at a certain distance before
+    # moving on to a further distance
+    # All of these nodes are in the lattice_Graph except the one it is trying to place
+
+    # List of nodes I have not found empty neighbors for
+    list_of_tried_nodes = [connecting_node]
+
+    # List of nodes I want to check for neighbors
+    connecting_nodes = [x for x in nx.neighbors(lattice_Graph, connecting_node)]
+    list_of_tried_nodes += connecting_nodes
+
+    # List of potentially empty places to put the end tail
+    potential_empty_nodes = []
+
+    while placement_node == -1:
+
+        #print(f"The qubit {start_node}, which is connected to {connecting_node} has been tried to be placed at locations {list_of_tried_nodes}")
+
+        # Find all the nodes that I need to check for an empty neighbor
+        for node in connecting_nodes:
+            new_items = [x for x in nx.neighbors(lattice_Graph, node) if (x not in list_of_tried_nodes and x not in potential_empty_nodes)]
+            potential_empty_nodes += new_items
+
+        #print(f"The location(s) {potential_empty_nodes} are candidate nodes to place {start_node} because they are neighbors of locations {connecting_nodes}")
+
+        # Run through all the nodes
+        for node in potential_empty_nodes:
+
+            # If there's nothing there, place the qubit
+            if lattice_Graph.nodes[node]['qubit'] == -1:
+                placement_node = node
+                #print(f"The node {start_node} will be placed at location: {node}")
+                break
+
+            else:
+                #print(f"The node {start_node} could not be placed at location: {node}")
+                list_of_tried_nodes.append(node)
+
+        # The potential_empty_nodes becomes the connecting_nodes list
+        connecting_nodes = []
+        connecting_nodes = potential_empty_nodes
+         
+    # At the end, we return the node that we will put the end of the tail at
+    return(placement_node)
+
+
+# This code places the yellow and red qubits
+"""
+Process:
+    WARNING!! This code always expects a graph with green, yellow, and red nodes
+    Place an initial yellow qubit
+    Place a qubit that is a neighbor of the first qubit
+    Continue to place the neighbors of the qubits. If a qubit has no unplaced neighbors,
+        place a random qubit
+"""
 def place_initial_qubits(lattice_Graph, QUBO_Graph):
-    # Remeber, everything on the HH lattice has degree 3 when fully connected
-    # 1. Place the first qubit
-    # 2. Find a neighbor that is untaken and place the next qubit from among
-    #       those among the first one's neighbors
-    # 3. Repeat 2 until finished
-    # 4. Place end tails at the closest untaken node to their attachment point
 
-    # Place non-edge tail qubits
     # Places the first qubit
-    cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['color'] == 'y']
+    # If a smal QUBO, place a yellow node first, else place a red node
+    # This is just so the red nodes are slightly more centralized in the graph
+    if len(QUBO_Graph.nodes) < 7:
+        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['color'] == 'y']
+    else:
+        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['color'] == 'r']
 
+    # Picks the first node
     rand_node = random.choices(cand_qubits, k=1)[0]
 
-    # Modifies the info stored in the nodes
-    lattice_Graph.nodes[0]['qubit'] = rand_node
-    lattice_Graph.nodes[0]['color'] = QUBO_Graph.nodes[rand_node]['color']
-    lattice_Graph.nodes[0]['size'] = 300
+    #print(f"The first node to be placed is {rand_node}")
+    #print(f"Node {rand_node} was placed at 0")
 
-    # Modifies the info stored in the nodes
-    QUBO_Graph.nodes[rand_node]['placed'] = True
-    QUBO_Graph.nodes[rand_node]['embedded'] = 0
+    # Places the first node
+    place_node(lattice_Graph, QUBO_Graph, 0, rand_node)
 
     prev_node = rand_node
 
-    # Places the rest of the qubits
-    for i in range(len([x for x, node in QUBO_Graph.nodes(data=True) if node['placed'] is False])):
-        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if (x in nx.neighbors(QUBO_Graph, prev_node) and node['placed'] is False)]
+    # Places the rest of the qubits that are not green
+    for i in range(len([x for x, node in QUBO_Graph.nodes(data=True) if node['color'] != 'g']) - 1):
+
+        # Chooses new candidate qubits
+        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if (x in nx.neighbors(QUBO_Graph, prev_node) and node['placed'] is False and node['color'] != 'g')]
 
         # If all the neighbors of the previous node have been placed, then randomly
         # choose from unplaced qubits
         if cand_qubits == []:
-            cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['placed'] is False]
-
-        # print(cand_qubits)
+            cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if (node['placed'] is False and node['color'] != 'g')]
+        
+        #print(f"The candidate qubits for the next placement is {cand_qubits}")
 
         rand_node = random.choices(cand_qubits, k=1)[0]
 
-        # i+1 because the first node is already taken
-        lattice_Graph.nodes[i + 1]['qubit'] = rand_node
-        lattice_Graph.nodes[i + 1]['color'] = QUBO_Graph.nodes[rand_node]['color']
-        lattice_Graph.nodes[i + 1]['size'] = 300
+        #print(f"The next node to be placed is {rand_node}")
 
-        QUBO_Graph.nodes[rand_node]['placed'] = True
-        QUBO_Graph.nodes[rand_node]['embedded'] = i + 1
+        place_node(lattice_Graph, QUBO_Graph, i+1, rand_node)
+    
+    #print("All of the non-green nodes have been placed")
+    
+    return lattice_Graph, QUBO_Graph
 
-        prev_node = rand_node
 
-    # Place green qubits
+# This is the code that places the green node chains
+"""
+Process:
+    Choose a green node that connects the chain to the main lattice
+    Try to place it adjacent to the node it connects to on the main lattice
+    If there are no open nodes on the main lattice, search for the closest empty spot to put it
+    Once the start of the chain is placed, continue to place the chain as long as there are open spaces
+    If there are not open spaces adjacent to the previously placed node, then put the next node in the chain 
+        into an open space as closely as possible
+    Repeat until the whole chain is placed
+    Repeat for each chain
+"""
+
+def place_green_qubits(lattice_Graph, QUBO_Graph):
+
+    #print("Beginning placement of green nodes")
+
+    # We have to run through each chain of green nodes on the graph
     for start_node in [x for x, node in QUBO_Graph.nodes(data=True) if node['tail_start'] is True]:
-        #print(f"The next green node to be placed is: {start_node}")
+        #print(f"The next chain to be placed starts with the node {start_node}")
 
         # Gets the qubit that connects the tail to the main graph
-        connecting_qubit = [x for x in nx.neighbors(QUBO_Graph, start_node) if QUBO_Graph.degree[x] > 2][0]
-        #print(f"The qubit it is connected to is: {connecting_qubit}")
-        while True:
+        # The connecting qubit will always have a degree of greater than two, or it would be part of the chain
+        connecting_node = [x for x in nx.neighbors(QUBO_Graph, start_node) if QUBO_Graph.degree[x] > 2][0]
+        
+        #print(f"This chain will connect to the main graph at {connecting_node}, which is embedded at location {QUBO_Graph.nodes[connecting_node]['embedded']}")
 
-            # Checks if there is a place to put the next green qubit
-            for placement_spot in nx.neighbors(lattice_Graph, QUBO_Graph.nodes[connecting_qubit]['embedded']):
+        while QUBO_Graph.nodes[start_node]['placed'] is False:
+
+            # Checks if there is an open spot next to the connecting node
+            # The connecting node will always already be embedded, so it will have a spot on the lattice graph
+            for placement_spot in nx.neighbors(lattice_Graph, QUBO_Graph.nodes[connecting_node]['embedded']):
 
                 # If no qubit, place the node
                 if lattice_Graph.nodes[placement_spot]['qubit'] == -1:
 
-                    lattice_Graph.nodes[placement_spot]['qubit'] = start_node
-                    lattice_Graph.nodes[placement_spot]['color'] = QUBO_Graph.nodes[start_node]['color']
-                    lattice_Graph.nodes[placement_spot]['size'] = 300
+                    place_node(lattice_Graph, QUBO_Graph, placement_spot, start_node)
+                    
+                    #print(f"The node {start_node} has been placed on the lattice at location {placement_spot}")
 
-                    QUBO_Graph.nodes[start_node]['placed'] = True
-                    QUBO_Graph.nodes[start_node]['embedded'] = placement_spot
-                    print(f"Qubit {start_node} was placed at {placement_spot}")
                     break
+            
+            if QUBO_Graph.nodes[start_node]['placed'] is False:
 
+                placement_spot = find_open_node(lattice_Graph, QUBO_Graph, start_node, connecting_node)
+
+                place_node(lattice_Graph, QUBO_Graph, placement_spot, start_node)
+                    
+                #print(f"The node {start_node} has been placed on the lattice at location {placement_spot}")
+            
             # If the green node that was placed has a degree of 0, then the chain is finished
             if QUBO_Graph.degree(start_node) == 1:
-                #print(f"This chain has ended, and the connecting node was embedded at {QUBO_Graph.nodes[connecting_qubit]['embedded']}")
+                #print(f"This chain has ended")
                 break
             else:
                 # The placed qubit now connects the chain
-                connecting_qubit = start_node
+                connecting_node = start_node
 
                 # The qubit to be placed in the next one in line
-                start_node = [x for x in nx.neighbors(QUBO_Graph, connecting_qubit) if QUBO_Graph.nodes[x]['embedded'] == -1][0]
+                start_node = [x for x in nx.neighbors(QUBO_Graph, connecting_node) if QUBO_Graph.nodes[x]['embedded'] == -1][0]
 
-                #print(f"Now, we will connect qubit {start_node} to qubit {connecting_qubit}")
+                #print(f"Now, we will connect qubit {start_node} to qubit {connecting_node}")
+    
+    #print("All of the green nodes have been placed")
 
     return lattice_Graph, QUBO_Graph
 
 
+
+
+
+
+
+
+
+    
