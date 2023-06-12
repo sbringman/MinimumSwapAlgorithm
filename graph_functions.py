@@ -114,6 +114,10 @@ def color_graph(graph):
 
         if graph.degree[node] == max_degree:
             graph.nodes[node]['color'] = 'r'
+    
+    # Next, color the edges, which at this stage will always be red
+    for edge in graph.edges:
+        graph.edges[edge]['color'] = 'r'
 
     return graph
 
@@ -137,6 +141,11 @@ def import_lattice():
         lattice_graph.add_edge(row['Node1'], row['Node2'])
     
     return lattice_graph
+
+
+"""
+Placement Functions
+"""
 
 
 # This just places the nodes onto the graph in the given spot
@@ -220,7 +229,7 @@ def place_initial_qubits(lattice_Graph, QUBO_Graph):
     # Places the first qubit
     # If a smal QUBO, place a yellow node first, else place a red node
     # This is just so the red nodes are slightly more centralized in the graph
-    if len(QUBO_Graph.nodes) < 7:
+    if len(QUBO_Graph.nodes) < 10:
         cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['color'] == 'y']
     else:
         cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['color'] == 'r']
@@ -254,6 +263,8 @@ def place_initial_qubits(lattice_Graph, QUBO_Graph):
         #print(f"The next node to be placed is {rand_node}")
 
         place_node(lattice_Graph, QUBO_Graph, i+1, rand_node)
+
+        prev_node = rand_node
     
     #print("All of the non-green nodes have been placed")
     
@@ -328,11 +339,76 @@ def place_green_qubits(lattice_Graph, QUBO_Graph):
     return lattice_Graph, QUBO_Graph
 
 
+"""
+Swapping Functions
+"""
 
 
+# This function swaps two qubits
+# It doesn't return anything, it just swaps them in the function
+def swap_qubits(lattice_Graph, QUBO_Graph, qubit1, qubit2):
+
+    lattice_Graph.nodes[qubit1]['qubit'], lattice_Graph.nodes[qubit2]['qubit'] = lattice_Graph.nodes[qubit2]['qubit'], lattice_Graph.nodes[qubit1]['qubit']
+    lattice_Graph.nodes[qubit1]['color'], lattice_Graph.nodes[qubit2]['color'] = lattice_Graph.nodes[qubit2]['color'], lattice_Graph.nodes[qubit1]['color']
+    lattice_Graph.nodes[qubit1]['size'], lattice_Graph.nodes[qubit2]['size'] = lattice_Graph.nodes[qubit2]['size'], lattice_Graph.nodes[qubit1]['size']
+
+    QUBO_Graph.nodes[qubit1]['embedded'], QUBO_Graph.nodes[qubit2]['embedded'] = QUBO_Graph.nodes[qubit2]['embedded'], QUBO_Graph.nodes[qubit1]['embedded']
+
+    return None
 
 
+# This function runs all the entanglements for the current graph
+# May want to have it check all edges in the QUBO graph for edges in the lattice graph instead
+def get_current_entangles(lattice_Graph, QUBO_Graph, list_of_entangles):
+
+    #print(f"Here is the list of qubits that need to be entangled: {list_of_entangles}")
+
+    num_entangles = 0
+
+    for node_1, node_2 in lattice_Graph.edges:
+
+        # This function transforms the edge in the lattice graph to an edge in the 
+        # qubit graph
+        # There is a difference between (0, 1) and (1, 0)
+        edge1 = (lattice_Graph.nodes[node_1]['qubit'], lattice_Graph.nodes[node_2]['qubit'])
+        edge2 = (lattice_Graph.nodes[node_2]['qubit'], lattice_Graph.nodes[node_1]['qubit'])
+
+        # This is the case where there is no qubit embedded at that spot
+        if edge1[0] == -1 or edge1[1] == -1 or edge2[0] == -1 or edge2[1] == -1:
+            pass
+
+        elif edge1 in list_of_entangles:
+            #print(f"{edge1} was entangled")
+
+            QUBO_Graph.edges[edge1]['color'] = 'g'
+            
+            list_of_entangles.remove(edge1)
+            num_entangles += 1
+
+        elif edge2 in list_of_entangles:
+            #print(f"{edge2} was entangled")
+
+            QUBO_Graph.edges[edge2]['color'] = 'g'
+            
+            list_of_entangles.remove(edge2)
+            num_entangles += 1
+        
+        else:
+            #print(f"{edge1} and {edge2} were not in the list of entanglements")
+            pass
+    
+    return lattice_Graph, QUBO_Graph, num_entangles
 
 
+# This function finds the next position for the lattice graph to swap to
+def perform_next_swap(lattice_Graph):
 
+    # Find the next graph to swap to
+
+    # Perform the swaps
+    swaps = 0
+
+    # Entangle everythings that needs to be entangled
+
+    return lattice_Graph, swaps
     

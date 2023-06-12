@@ -43,6 +43,7 @@ def set_scale(scale):
 def makePlot(graph):
 
     color_array = list(graph.nodes[i]['color'] for i in graph.nodes())
+    edge_array = list(graph.edges[i]['color'] for i in graph.edges())
 
     plt.clf()
 
@@ -52,7 +53,7 @@ def makePlot(graph):
     set_scale(fig.dpi/75)
     axQUBO = plt.axes(facecolor='w')
     axQUBO.set_axis_off()
-    nx.draw_networkx(graph, pos=nx.circular_layout(graph), node_color=color_array)
+    nx.draw_networkx(graph, pos=nx.circular_layout(graph), node_color=color_array, edge_color=edge_array)
 
     return fig
 
