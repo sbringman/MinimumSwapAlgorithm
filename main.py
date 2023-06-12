@@ -208,7 +208,6 @@ lattice_Graph, QUBO_Graph = graph_func.place_green_qubits(lattice_Graph, QUBO_Gr
 entangles = list(QUBO_Graph.edges)
 num_swaps = 0
 
-
 # Perform initial entanglements
 lattice_Graph, QUBO_Graph, num_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles)
 
