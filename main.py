@@ -15,8 +15,10 @@ import gui_functions as gui_func
 
 """
 To Do:
-    Cover the case where it swaps null qubits - swaps over spaces where there are no QUBO qubits
-    Swap better
+    *Swap better*
+    Separate the main problem into sub graphs and solve each sub graph, maybe recursively
+    Compare solutions with high and low swap numbers. If I can weed out high swap lattices early, 
+        I can test more lattices in the same amount of time
     Investigate the graph edit distance function in networkx
 
 Thing to keep in mind:
@@ -117,7 +119,7 @@ info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10,
                ]
 
 layout2 = [[sg.Col(info_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas')],
-           [sg.Exit(key="Exit"), sg.Button("Add Node", key="-ADD_NODE-"),
+           [sg.Exit(key="Exit"), sg.Button("Add Edge", key="-ADD_NODE-"),
             sg.Button("Update Graph", key="-UPDATE-"), sg.Button("Finished")],
            [sg.Text("")],
            ]
@@ -148,6 +150,10 @@ while True:
     if event == "-ADD_NODE-":
         if values["-NODE1-"] == values["-NODE2-"]:
             window2["-ERROR2-"].update("Self loops are not allowed")
+
+        elif (values["-NODE1-"], values["-NODE2-"]) in QUBO_Graph.edges():
+            window2["-ERROR2-"].update("That edge already exists in the graph")
+
         else:
             window2["-ERROR2-"].update("")
             QUBO_Graph.add_edge(values["-NODE1-"], values["-NODE2-"])
@@ -266,7 +272,7 @@ while True:
     elif event == "-SWAP-" and not solved:
 
         # Do the swaps
-        lattice_Graph, new_swaps, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
+        lattice_Graph, new_swaps, swap_list, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
 
         # Get the current entanglements
         lattice_Graph, QUBO_Graph, entangles_to_do, new_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)

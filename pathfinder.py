@@ -19,6 +19,8 @@ import graph_functions as graph_func
 This is the code that will run the minimum swap algorithm 100 times to find a short path
 """
 
+iterations = 10000
+
 # Sets the font options
 font = ("Helvetica", 17)
 sg.set_options(font=font)
@@ -126,7 +128,7 @@ info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10,
                ]
 
 layout2 = [[sg.Col(info_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas')],
-           [sg.Exit(key="Exit"), sg.Button("Add Node", key="-ADD_NODE-"),
+           [sg.Exit(key="Exit"), sg.Button("Add Edge", key="-ADD_NODE-"),
             sg.Button("Update Graph", key="-UPDATE-"), sg.Button("Finished")],
            [sg.Text("")],
            ]
@@ -157,6 +159,10 @@ while True:
     if event == "-ADD_NODE-":
         if values["-NODE1-"] == values["-NODE2-"]:
             window2["-ERROR2-"].update("Self loops are not allowed")
+
+        elif (values["-NODE1-"], values["-NODE2-"]) in QUBO_Graph.edges():
+            window2["-ERROR2-"].update("That edge already exists in the graph")
+
         else:
             window2["-ERROR2-"].update("")
             QUBO_Graph.add_edge(values["-NODE1-"], values["-NODE2-"])
@@ -186,8 +192,9 @@ original_lattice = copy.deepcopy(lattice_Graph)
 
 # Then, get the variables for the process
 list_of_swap_nums = []
+best_swap_list = [i for i in range(1000)]
 
-for i in range(100):
+for i in range(iterations):
 
     # Refresh everything
     QUBO_Graph = copy.deepcopy(original_QUBO)
@@ -199,28 +206,42 @@ for i in range(100):
     lattice_Graph, QUBO_Graph = graph_func.place_initial_qubits(lattice_Graph, QUBO_Graph)
     lattice_Graph, QUBO_Graph = graph_func.place_green_qubits(lattice_Graph, QUBO_Graph)
 
+    # We have to save this for when it finds the best path
+    start_lattice = copy.deepcopy(lattice_Graph)
+
     # Do initial entangling
     # entangles is a list of all the qubits that need to be entangled.
     # It is a list of tuples
     entangles_to_do = list(QUBO_Graph.edges)
     num_swaps = 0
     # num_entangles does nothing here
+    swap_list = []
 
     lattice_Graph, QUBO_Graph, entangles_to_do, num_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
     while not solved:
         # Do the swaps
-        lattice_Graph, new_swaps, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
+        lattice_Graph, new_swaps, new_swap_list, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
         swaps += new_swaps
+        swap_list += new_swap_list
 
         # Get the current entanglements
         lattice_Graph, QUBO_Graph, entangles_to_do, new_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
         if len(entangles_to_do) == 0:
             solved = True
-            print(f"Finished solving attempt {i + 1} - {swaps} swaps")
+            #print(f"Finished solving attempt {i + 1} - {swaps} swaps")
 
             list_of_swap_nums.append(swaps)
+
+            if len(swap_list) < len(best_swap_list):
+                best_swap_list = swap_list
+                best_lattice = copy.deepcopy(start_lattice)
+
+                print(f"A new best swap path was found, with a length of {len(swap_list)}")
+
+# Needs to also print out the original lattice placement
+print(f"The best path was {best_swap_list}")
 
 # Clean up calculations
 best_swap = min(list_of_swap_nums)
@@ -234,16 +255,21 @@ run_time_column = [[sg.Text("# of Qubits: "), sg.Text(key='-NUM_VAR2-', size=(10
                    [sg.Text("# of Entanglements Needed: "), sg.Text(key='-NUM_EDGES2-', size=(10, 1))],
                    [sg.Text("Average # of Swaps: "), sg.Text('0', key='-AVE_SWAPS-', size=(10, 1))],
                    [sg.Text("Lowest # of Swaps: "), sg.Text('0', key='-BEST_SWAP-', size=(10, 1))],
-                   [sg.Text("", size=(27, 1))],
+                   [sg.Text("", size=(35, 1))],
                    ]
 
+route_column = [[sg.Text("Best Path:", size=(35, 1))],
+                [sg.Text("", key='-ROUTE-', size=(35, 5))],
+               ]
+
 layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
+           [sg.Col(route_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas4')],
            [sg.Exit(key="Exit")],
            [sg.Text("")],
            ]
 
 # Create the second window
-window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1200, 430), margins=(0, 0))
+window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1200, 780), margins=(0, 0))
 window3.move_to_center()
 
 # Update the third window
@@ -251,14 +277,19 @@ window3["-NUM_VAR2-"].update(num_nodes)
 window3["-NUM_EDGES2-"].update(num_edges)
 window3["-AVE_SWAPS-"].update(ave_swaps)
 window3["-BEST_SWAP-"].update(best_swap)
+window3["-ROUTE-"].update(str(best_swap_list))
 
 # Draws the initial QUBO graph to the window
 figure_q = gui_func.makePlot(QUBO_Graph)
 figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
 
 # Draw the histogram plot to the window
+figure_l = gui_func.makeLatticePlot(best_lattice)
+figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
+
+# Draw the histogram plot to the window
 figure_hist = gui_func.makeSwapHist(list_of_swap_nums)
-figure_agg_hist = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_hist)
+figure_agg_hist = gui_func.draw_figure(window3['figCanvas4'].TKCanvas, figure_hist)
 
 window3.refresh()
 window3.move_to_center()

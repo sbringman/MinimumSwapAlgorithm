@@ -434,6 +434,7 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles):
 
     # Perform the swaps
     swaps = 0
+    swap_list = []
 
     while swaps < len(path) - 2:
 
@@ -442,9 +443,11 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles):
         # The lattice points remain unchanged in this
         swap_qubits(lattice_Graph, QUBO_Graph, path[swaps], path[swaps+1])
 
+        swap_list.append((path[swaps], path[swaps + 1]))
+
         swaps += 1
 
     # Entangle everythings that needs to be entangled
 
-    return lattice_Graph, swaps, list_of_entangles
+    return lattice_Graph, swaps, swap_list, list_of_entangles
     
