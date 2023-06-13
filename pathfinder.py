@@ -11,6 +11,7 @@ import PySimpleGUI as sg
 import numpy as np
 import sys
 import copy
+import time
 
 import gui_functions as gui_func
 import graph_functions as graph_func
@@ -123,6 +124,7 @@ info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10,
                [sg.Text("Add an edge between nodes:")],
                [sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE1-"),
                 sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE2-")],
+               [sg.Text("# of Iterations: "), sg.InputText('1000', size=(10, 1), key='-NUM_ITER-')],
                [sg.Text("", size=(40, 1), key='-ERROR2-')],
                [sg.Text("")],
                ]
@@ -180,11 +182,32 @@ while True:
         #fca = gui_func.updateFigure(fca, window2, QUBO_Graph, 'figCanvas')
 
     if event == "Finished":
-        break
+
+        # Check for the validity of the iterations value
+        if values['-NUM_ITER-']:
+
+            iterations = values['-NUM_ITER-']
+
+            try:
+                int(iterations) + 1
+
+                if int(iterations) > 0:
+                    # Now, everything is checked
+
+                    iterations = int(iterations)
+                    break
+                else:
+                    window2["-ERROR2-"].update("# of iterations must be a positive integer")
+            
+            except:
+                window2["-ERROR2-"].update("# of iterations must be an integer")
 
 window2.close()
 
 # Here, put the loading window
+
+start_time = time.perf_counter()
+
 
 # First thing to do is save all the original variables
 original_QUBO = copy.deepcopy(QUBO_Graph)
@@ -247,6 +270,9 @@ print(f"The best path was {best_swap_list}")
 best_swap = min(list_of_swap_nums)
 ave_swaps = np.average(np.array(list_of_swap_nums))
 
+end_time = time.perf_counter()
+run_time = round(end_time - start_time, ndigits=2)
+
 """
 Now, display all the final information
 """
@@ -255,6 +281,9 @@ run_time_column = [[sg.Text("# of Qubits: "), sg.Text(key='-NUM_VAR2-', size=(10
                    [sg.Text("# of Entanglements Needed: "), sg.Text(key='-NUM_EDGES2-', size=(10, 1))],
                    [sg.Text("Average # of Swaps: "), sg.Text('0', key='-AVE_SWAPS-', size=(10, 1))],
                    [sg.Text("Lowest # of Swaps: "), sg.Text('0', key='-BEST_SWAP-', size=(10, 1))],
+                   [sg.Text("Iterations: "), sg.Text('0', key='-ITER-', size=(10, 1))],
+                   [sg.Text("Run Time: "), sg.Text('0', key='-RUN_TIME-', size=(10, 1))],
+                   [sg.Text("Run Time per Trial: "), sg.Text('0', key='-RUN_TIME_TRIAL-', size=(10, 1))],
                    [sg.Text("", size=(35, 1))],
                    ]
 
@@ -278,6 +307,9 @@ window3["-NUM_EDGES2-"].update(num_edges)
 window3["-AVE_SWAPS-"].update(ave_swaps)
 window3["-BEST_SWAP-"].update(best_swap)
 window3["-ROUTE-"].update(str(best_swap_list))
+window3["-ITER-"].update(iterations)
+window3["-RUN_TIME-"].update(f"{run_time} s")
+window3["-RUN_TIME_TRIAL-"].update(f"{round((run_time / iterations) * 1000, ndigits=3)} ms")
 
 # Draws the initial QUBO graph to the window
 figure_q = gui_func.makePlot(QUBO_Graph)

@@ -443,7 +443,7 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles):
         # The lattice points remain unchanged in this
         swap_qubits(lattice_Graph, QUBO_Graph, path[swaps], path[swaps+1])
 
-        swap_list.append((path[swaps], path[swaps + 1]))
+        swap_list.append((lattice_Graph.nodes[path[swaps]]['qubit'], lattice_Graph.nodes[path[swaps+1]]['qubit']))
 
         swaps += 1
 
