@@ -6,26 +6,17 @@ Created on Sat Jun  3 16:18:25 2023
 @author: sambringman
 """
 
+import networkx as nx
 import PySimpleGUI as sg
+import numpy as np
 import sys
+import copy
 
-# Import from my function program
-import graph_functions as graph_func
 import gui_functions as gui_func
+import graph_functions as graph_func
 
 """
-To Do:
-    Cover the case where it swaps null qubits - swaps over spaces where there are no QUBO qubits
-    Swap better
-    Investigate the graph edit distance function in networkx
-
-Thing to keep in mind:
-    Qubits on their last swap should be swapped further from the center of the maze
-"""
-
-
-"""
-Variables
+This is the code that will run the minimum swap algorithm 100 times to find a short path
 """
 
 # Sets the font options
@@ -101,6 +92,24 @@ QUBO_Graph, num_nodes, num_edges, list_nodes = graph_func.make_qubo_graph(num_no
 
 QUBO_Graph = graph_func.color_graph(QUBO_Graph)
 
+# Graph info
+# color: the color of the node, gives info on the degree of the node
+# pos: position of the node for graphing purposes only
+# placed: whether or not it has been put on the qubit lattice
+# tail_start: whether it starts an end tail
+# tail_end: whether it ends an end tail
+# embedded: the number of the node on the lattice it is embedded at
+
+lattice_Graph = graph_func.import_lattice()
+
+# Graph info
+# color: the color of the node
+# pos: position of the node for graphing purposes only
+# qubit: the number of the node of the QUBO graph that has been
+#        placed at that node
+# size: the size of the dot, for graphing purposes only
+# color: the color of the node, for graphing purposes only
+
 """
 Second Window:
     Putting in the edges
@@ -167,70 +176,69 @@ while True:
     if event == "Finished":
         break
 
-# Can put this after the graph mapping if that takes a while
-# Just pop up a message saying that it's mapping
 window2.close()
 
+# Here, put the loading window
+
+# First thing to do is save all the original variables
+original_QUBO = copy.deepcopy(QUBO_Graph)
+original_lattice = copy.deepcopy(lattice_Graph)
+
+# Then, get the variables for the process
+list_of_swap_nums = []
+
+for i in range(100):
+
+    # Refresh everything
+    QUBO_Graph = copy.deepcopy(original_QUBO)
+    lattice_Graph = copy.deepcopy(original_lattice)
+    solved = False
+    swaps = 0
+
+    # Map to the lattice
+    lattice_Graph, QUBO_Graph = graph_func.place_initial_qubits(lattice_Graph, QUBO_Graph)
+    lattice_Graph, QUBO_Graph = graph_func.place_green_qubits(lattice_Graph, QUBO_Graph)
+
+    # Do initial entangling
+    # entangles is a list of all the qubits that need to be entangled.
+    # It is a list of tuples
+    entangles_to_do = list(QUBO_Graph.edges)
+    num_swaps = 0
+    # num_entangles does nothing here
+
+    lattice_Graph, QUBO_Graph, entangles_to_do, num_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
+
+    while not solved:
+        # Do the swaps
+        lattice_Graph, new_swaps, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
+        swaps += new_swaps
+
+        # Get the current entanglements
+        lattice_Graph, QUBO_Graph, entangles_to_do, new_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
+
+        if len(entangles_to_do) == 0:
+            solved = True
+            print(f"Finished solving attempt {i + 1} - {swaps} swaps")
+
+            list_of_swap_nums.append(swaps)
+
+# Clean up calculations
+best_swap = min(list_of_swap_nums)
+ave_swaps = np.average(np.array(list_of_swap_nums))
+
 """
-Data Processing for the Third Window:
-    Color the graph
-"""
-
-QUBO_Graph = graph_func.color_graph(QUBO_Graph)
-
-# Graph info
-# color: the color of the node, gives info on the degree of the node
-# pos: position of the node for graphing purposes only
-# placed: whether or not it has been put on the qubit lattice
-# tail_start: whether it starts an end tail
-# tail_end: whether it ends an end tail
-# embedded: the number of the node on the lattice it is embedded at
-
-"""
-Creating the Qubit Graph
-"""
-
-lattice_Graph = graph_func.import_lattice()
-
-# Graph info
-# color: the color of the node
-# pos: position of the node for graphing purposes only
-# qubit: the number of the node of the QUBO graph that has been
-#        placed at that node
-# size: the size of the dot, for graphing purposes only
-# color: the color of the node, for graphing purposes only
-
-"""
-Mapping the QUBO to the lattice:
-    This is where the mapping algorithm is applied
-"""
-
-lattice_Graph, QUBO_Graph = graph_func.place_initial_qubits(lattice_Graph, QUBO_Graph)
-lattice_Graph, QUBO_Graph = graph_func.place_green_qubits(lattice_Graph, QUBO_Graph)
-
-# entangles is a list of all the qubits that need to be entangled.
-# It is a list of tuples
-entangles_to_do = list(QUBO_Graph.edges)
-num_swaps = 0
-
-# Perform initial entanglements
-lattice_Graph, QUBO_Graph, entangles_to_do, num_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
-
-"""
-Third Window:
-    Actually run the min swap alorgithm
+Now, display all the final information
 """
 
 run_time_column = [[sg.Text("# of Qubits: "), sg.Text(key='-NUM_VAR2-', size=(10, 1))],
                    [sg.Text("# of Entanglements Needed: "), sg.Text(key='-NUM_EDGES2-', size=(10, 1))],
-                   [sg.Text("# of Entanglements Performed: "), sg.Text('0', key='-NUM_ENT-', size=(10, 1))],
-                   [sg.Text("# of Swaps: "), sg.Text('0', key='-NUM_SWAPS-', size=(10, 1))],
-                   [sg.Text("", key='-FINISHED-', size=(30, 3))],
+                   [sg.Text("Average # of Swaps: "), sg.Text('0', key='-AVE_SWAPS-', size=(10, 1))],
+                   [sg.Text("Lowest # of Swaps: "), sg.Text('0', key='-BEST_SWAP-', size=(10, 1))],
                    [sg.Text("", size=(27, 1))],
                    ]
 
 layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
-           [sg.Button("Next Swap", key="-SWAP-"), sg.Exit(key="Exit")],
+           [sg.Exit(key="Exit")],
            [sg.Text("")],
            ]
 
@@ -241,55 +249,25 @@ window3.move_to_center()
 # Update the third window
 window3["-NUM_VAR2-"].update(num_nodes)
 window3["-NUM_EDGES2-"].update(num_edges)
+window3["-AVE_SWAPS-"].update(ave_swaps)
+window3["-BEST_SWAP-"].update(best_swap)
 
 # Draws the initial QUBO graph to the window
 figure_q = gui_func.makePlot(QUBO_Graph)
 figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
 
-# Draws the HH graph to the window
-figure_l = gui_func.makeLatticePlot(lattice_Graph)
-figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
+# Draw the histogram plot to the window
+figure_hist = gui_func.makeSwapHist(list_of_swap_nums)
+figure_agg_hist = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_hist)
 
 window3.refresh()
 window3.move_to_center()
-
-window3["-NUM_ENT-"].update(num_entangles)
-
-solved = False
 
 # Event Loop to process "events"
 while True:
     event, values = window3.read()
     if event in (sg.WIN_CLOSED, "Exit"):
         break
-
-    elif event == "-SWAP-" and not solved:
-
-        # Do the swaps
-        lattice_Graph, new_swaps, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
-
-        # Get the current entanglements
-        lattice_Graph, QUBO_Graph, entangles_to_do, new_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
-
-        # Update the window
-        num_entangles += new_entangles
-        window3["-NUM_ENT-"].update(num_entangles)
-
-        num_swaps += new_swaps
-        window3["-NUM_SWAPS-"].update(num_swaps)
-
-        # And the graphs
-        gui_func.delete_figure_agg(figure_agg_q)
-        figure_q = gui_func.makePlot(QUBO_Graph)
-        figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
-
-        gui_func.delete_figure_agg(figure_agg_l)
-        figure_l = gui_func.makeLatticePlot(lattice_Graph)
-        figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
-
-        if len(entangles_to_do) == 0:
-            window3["-FINISHED-"].update("Congratulations!! All qubits have been properly entangled!")
-            solved = True
             
 window3.close()
 sys.exit()

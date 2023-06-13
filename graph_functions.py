@@ -346,13 +346,27 @@ Swapping Functions
 
 # This function swaps two qubits
 # It doesn't return anything, it just swaps them in the function
-def swap_qubits(lattice_Graph, QUBO_Graph, qubit1, qubit2):
+def swap_qubits(lattice_Graph, QUBO_Graph, lattice_point1, lattice_point2):
 
-    lattice_Graph.nodes[qubit1]['qubit'], lattice_Graph.nodes[qubit2]['qubit'] = lattice_Graph.nodes[qubit2]['qubit'], lattice_Graph.nodes[qubit1]['qubit']
-    lattice_Graph.nodes[qubit1]['color'], lattice_Graph.nodes[qubit2]['color'] = lattice_Graph.nodes[qubit2]['color'], lattice_Graph.nodes[qubit1]['color']
-    lattice_Graph.nodes[qubit1]['size'], lattice_Graph.nodes[qubit2]['size'] = lattice_Graph.nodes[qubit2]['size'], lattice_Graph.nodes[qubit1]['size']
+    qubit_1 = lattice_Graph.nodes[lattice_point1]['qubit']
+    qubit_2 = lattice_Graph.nodes[lattice_point2]['qubit']
 
-    QUBO_Graph.nodes[qubit1]['embedded'], QUBO_Graph.nodes[qubit2]['embedded'] = QUBO_Graph.nodes[qubit2]['embedded'], QUBO_Graph.nodes[qubit1]['embedded']
+    lattice_Graph.nodes[lattice_point1]['qubit'], lattice_Graph.nodes[lattice_point2]['qubit'] = lattice_Graph.nodes[lattice_point2]['qubit'], lattice_Graph.nodes[lattice_point1]['qubit']
+    lattice_Graph.nodes[lattice_point1]['color'], lattice_Graph.nodes[lattice_point2]['color'] = lattice_Graph.nodes[lattice_point2]['color'], lattice_Graph.nodes[lattice_point1]['color']
+    lattice_Graph.nodes[lattice_point1]['size'], lattice_Graph.nodes[lattice_point2]['size'] = lattice_Graph.nodes[lattice_point2]['size'], lattice_Graph.nodes[lattice_point1]['size']
+
+
+    if qubit_1 != -1 and qubit_2 != -1:
+
+        QUBO_Graph.nodes[qubit_1]['embedded'], QUBO_Graph.nodes[qubit_2]['embedded'] = lattice_point2, lattice_point1
+    
+    elif qubit_2 == -1:
+
+        QUBO_Graph.nodes[qubit_1]['embedded'] = lattice_point2
+    
+    else:
+
+        QUBO_Graph.nodes[qubit_2]['embedded'] = lattice_point1
 
     return None
 
@@ -397,18 +411,40 @@ def get_current_entangles(lattice_Graph, QUBO_Graph, list_of_entangles):
             #print(f"{edge1} and {edge2} were not in the list of entanglements")
             pass
     
-    return lattice_Graph, QUBO_Graph, num_entangles
+    return lattice_Graph, QUBO_Graph, list_of_entangles, num_entangles
 
 
 # This function finds the next position for the lattice graph to swap to
-def perform_next_swap(lattice_Graph):
+def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles):
 
     # Find the next graph to swap to
+    shortest_swap = [-1, -1, 100] # node 1, node 2, swap distance
+
+    # Check the distances between the entanglements that still need to be done
+    for entangle in list_of_entangles:
+        path = nx.astar_path(lattice_Graph, QUBO_Graph.nodes[entangle[0]]['embedded'], QUBO_Graph.nodes[entangle[1]]['embedded'])
+        #print(f"The distance between the qubits {entangle[0]} and {entangle[1]} is {len(path)}")
+        #print(f"\tThis would be along the path {path}")
+
+        if len(path) < shortest_swap[2]:
+            #print(f"\tThis path of distance {len(path)} is shorter than {shortest_swap[2]}, so it will be done instead")
+            shortest_swap = [entangle[0], entangle[1], len(path)]
+    
+    #print(f"The next swap will be qubits {entangle[0]} and {entangle[1]} with a path length of {path}")
 
     # Perform the swaps
     swaps = 0
 
+    while swaps < len(path) - 2:
+
+        # This works because it is only swapping the qubits on top of the lattice points,
+        # so it is only changing the variables attached to each lattice point
+        # The lattice points remain unchanged in this
+        swap_qubits(lattice_Graph, QUBO_Graph, path[swaps], path[swaps+1])
+
+        swaps += 1
+
     # Entangle everythings that needs to be entangled
 
-    return lattice_Graph, swaps
+    return lattice_Graph, swaps, list_of_entangles
     

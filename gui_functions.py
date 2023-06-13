@@ -6,10 +6,13 @@ Created on Wed June 7th
 @author: sambringman
 """
 
+import matplotlib as mat
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import PySimpleGUI as sg
+
+mat.use("TKAgg")
 
 
 def draw_figure(canvas, figure):
@@ -80,3 +83,16 @@ def makeLatticePlot(graph):
 
     return fig
 
+def makeSwapHist(swaps):
+
+    fig = plt.figure('hist', figsize=(4, 3.5))
+    set_scale(fig.dpi/75)
+
+    plt.clf()
+    plt.title("Swaps Required to Solve the QUBO")
+    plt.xlabel("# of Swaps")
+    plt.ylabel("Frequency")
+
+    plt.hist(swaps, bins=range(min(swaps), max(swaps)+2), align='left', rwidth=0.8)
+
+    return fig
