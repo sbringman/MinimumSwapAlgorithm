@@ -15,6 +15,7 @@ import PySimpleGUI as sg
 mat.use("TKAgg")
 
 
+
 def draw_figure(canvas, figure):
     if not hasattr(draw_figure, 'canvas_packed'):
         draw_figure.canvas_packed = {}
@@ -25,6 +26,7 @@ def draw_figure(canvas, figure):
         draw_figure.canvas_packed[widget] = figure
         widget.pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
+
 
 def delete_figure_agg(figure_agg):
     figure_agg.get_tk_widget().forget()
