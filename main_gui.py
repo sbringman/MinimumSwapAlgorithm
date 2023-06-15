@@ -29,274 +29,273 @@ Thing to keep in mind:
 """
 Variables
 """
-def main():
-    
-    # Sets the font options
-    font = ("Helvetica", 17)
-    sg.set_options(font=font)
-    title_font = 'Courier 20'
 
-    # Creates a dummy window to try and standardize window sizes
-    # across different editors and computers
-    dummy_window = sg.Window("dummy", [[]], finalize=True)
+# Sets the font options
+font = ("Helvetica", 17)
+sg.set_options(font=font)
+title_font = 'Courier 20'
 
-    base_px = sg.tkinter.font.Font().measure('A')
-    f_px = sg.tkinter.font.Font(font=font).measure('A')
+# Creates a dummy window to try and standardize window sizes
+# across different editors and computers
+dummy_window = sg.Window("dummy", [[]], finalize=True)
 
-    graph_width = base_px * 10
-    graph_height = base_px * 67
+base_px = sg.tkinter.font.Font().measure('A')
+f_px = sg.tkinter.font.Font(font=font).measure('A')
 
-    dummy_window.close()
+graph_width = base_px * 10
+graph_height = base_px * 67
 
-    # Adds color to the windows
-    sg.theme('DarkTeal7')
+dummy_window.close()
 
-    # Layout of the first window
-    layout = [[sg.Text('Welcome to the Minimum Swap Algorithm Interface!', font=title_font, size=(45, 3))],
-            [sg.Text('How many variables in your QUBO?', size=(28, 1)), sg.InputText('8', key='-INPUT-')],
-            [sg.Text("", size=(40, 1), key='-ERROR-')],
-            [sg.Text("You may also load a file below to preconstruct the edges")],
-            [sg.FileBrowse(target='file'), sg.Input('None', key='file')],
-            [sg.Button("Enter"), sg.Cancel()],
+# Adds color to the windows
+sg.theme('DarkTeal7')
+
+# Layout of the first window
+layout = [[sg.Text('Welcome to the Minimum Swap Algorithm Interface!', font=title_font, size=(45, 3))],
+        [sg.Text('How many variables in your QUBO?', size=(28, 1)), sg.InputText('8', key='-INPUT-')],
+        [sg.Text("", size=(40, 1), key='-ERROR-')],
+        [sg.Text("You may also load a file below to preconstruct the edges")],
+        [sg.FileBrowse(target='file'), sg.Input('None', key='file')],
+        [sg.Button("Enter"), sg.Cancel()],
+        [sg.Text("")],
+        ]
+
+"""
+First Window:
+    For taking in input about the QUBO
+    Transferring that info into a graph
+"""
+
+# Create the Window
+window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 300))
+window.refresh()
+window.move_to_center()
+
+# Event Loop to process "events"
+while True:
+    event, values = window.read()
+    if event in (sg.WIN_CLOSED, 'Cancel'):
+        window.close()
+        sys.exit()
+
+    # If they enter anything, test to see if it is valid
+    if event == "Enter":
+        num_nodes = values['-INPUT-']
+
+        try:
+            test = range(int(num_nodes))
+
+            if int(num_nodes) > 0:
+                break
+            else:
+                window["-ERROR-"].update("Invalid input, please enter a valid number")
+
+        except:
+            window["-ERROR-"].update("Invalid input, please enter a number")
+
+window.close()
+
+"""
+Data Processing the User Input
+"""
+
+QUBO_Graph, num_nodes, num_edges, list_nodes = graph_func.make_qubo_graph(num_nodes, values["file"])
+
+QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+
+"""
+Second Window:
+    Putting in the edges
+    Making the QUBO graph
+"""
+
+info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10, 1))],
+            [sg.Text("Number of Edges: "), sg.Text(key='-NUM_EDGES-', size=(10, 1))],
+            [sg.Text("Add an edge between nodes:")],
+            [sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE1-"),
+                sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE2-")],
+            [sg.Text("", size=(40, 1), key='-ERROR2-')],
             [sg.Text("")],
             ]
 
-    """
-    First Window:
-        For taking in input about the QUBO
-        Transferring that info into a graph
-    """
+layout2 = [[sg.Col(info_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas')],
+        [sg.Exit(key="Exit"), sg.Button("Add Edge", key="-ADD_NODE-"),
+            sg.Button("Update Graph", key="-UPDATE-"), sg.Button("Finished")],
+        [sg.Text("")],
+        ]
 
-    # Create the Window
-    window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 300))
-    window.refresh()
-    window.move_to_center()
+# Create the second window
+window2 = sg.Window('Min Swap Program', layout2, finalize=True, size=(950, 400), margins=(0, 0))
+window2.refresh()
+window2.move_to_center()
 
-    # Event Loop to process "events"
-    while True:
-        event, values = window.read()
-        if event in (sg.WIN_CLOSED, 'Cancel'):
-            window.close()
-            sys.exit()
+# Update the second window
+window2["-NUM_VAR-"].update(num_nodes)
+window2["-NUM_EDGES-"].update(num_edges)
 
-        # If they enter anything, test to see if it is valid
-        if event == "Enter":
-            num_nodes = values['-INPUT-']
+# Draws the initial figure to the window
+figure2 = gui_func.makePlot(QUBO_Graph)
+figure_agg2 = gui_func.draw_figure(window2['figCanvas'].TKCanvas, figure2)
 
-            try:
-                test = range(int(num_nodes))
+window2.refresh()
+window2.move_to_center()
 
-                if int(num_nodes) > 0:
-                    break
-                else:
-                    window["-ERROR-"].update("Invalid input, please enter a valid number")
+# Event Loop to process "events"
+while True:
+    event, values = window2.read()
+    if event in (sg.WIN_CLOSED, "Exit"):
+        window2.close()
+        sys.exit()
 
-            except:
-                window["-ERROR-"].update("Invalid input, please enter a number")
+    if event == "-ADD_NODE-":
+        if values["-NODE1-"] == values["-NODE2-"]:
+            window2["-ERROR2-"].update("Self loops are not allowed")
 
-    window.close()
+        elif (values["-NODE1-"], values["-NODE2-"]) in QUBO_Graph.edges():
+            window2["-ERROR2-"].update("That edge already exists in the graph")
 
-    """
-    Data Processing the User Input
-    """
+        else:
+            window2["-ERROR2-"].update("")
+            QUBO_Graph.add_edge(values["-NODE1-"], values["-NODE2-"])
 
-    QUBO_Graph, num_nodes, num_edges, list_nodes = graph_func.make_qubo_graph(num_nodes, values["file"])
+            num_edges += 1
+            window2["-NUM_EDGES-"].update(num_edges)
 
-    QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+    if event == "-UPDATE-":
+        QUBO_Graph = graph_func.color_graph(QUBO_Graph)
 
-    """
-    Second Window:
-        Putting in the edges
-        Making the QUBO graph
-    """
+        gui_func.delete_figure_agg(figure_agg2)
+        figure2 = gui_func.makePlot(QUBO_Graph)
+        figure_agg2 = gui_func.draw_figure(window2['figCanvas'].TKCanvas, figure2)
 
-    info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10, 1))],
-                [sg.Text("Number of Edges: "), sg.Text(key='-NUM_EDGES-', size=(10, 1))],
-                [sg.Text("Add an edge between nodes:")],
-                [sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE1-"),
-                    sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE2-")],
-                [sg.Text("", size=(40, 1), key='-ERROR2-')],
-                [sg.Text("")],
+        #fca = gui_func.updateFigure(fca, window2, QUBO_Graph, 'figCanvas')
+
+    if event == "Finished":
+        break
+
+# Can put this after the graph mapping if that takes a while
+# Just pop up a message saying that it's mapping
+window2.close()
+
+"""
+Data Processing for the Third Window:
+    Color the graph
+"""
+
+QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+
+# Graph info
+# color: the color of the node, gives info on the degree of the node
+# pos: position of the node for graphing purposes only
+# placed: whether or not it has been put on the qubit lattice
+# tail_start: whether it starts an end tail
+# tail_end: whether it ends an end tail
+# embedded: the number of the node on the lattice it is embedded at
+
+"""
+Creating the Qubit Graph
+"""
+
+lattice_Graph = graph_func.import_lattice()
+
+# Graph info
+# color: the color of the node
+# pos: position of the node for graphing purposes only
+# qubit: the number of the node of the QUBO graph that has been
+#        placed at that node
+# size: the size of the dot, for graphing purposes only
+# color: the color of the node, for graphing purposes only
+
+"""
+Mapping the QUBO to the lattice:
+    This is where the mapping algorithm is applied
+"""
+
+lattice_Graph, QUBO_Graph = graph_func.place_initial_qubits(lattice_Graph, QUBO_Graph)
+lattice_Graph, QUBO_Graph = graph_func.place_green_qubits(lattice_Graph, QUBO_Graph)
+
+# entangles is a list of all the qubits that need to be entangled.
+# It is a list of tuples
+entangles_to_do = list(QUBO_Graph.edges)
+num_swaps = 0
+
+# Perform initial entanglements
+lattice_Graph, QUBO_Graph, entangles_to_do, num_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
+
+"""
+Third Window:
+    Actually run the min swap alorgithm
+"""
+
+run_time_column = [[sg.Text("# of Qubits: "), sg.Text(key='-NUM_VAR2-', size=(10, 1))],
+                [sg.Text("# of Entanglements Needed: "), sg.Text(key='-NUM_EDGES2-', size=(10, 1))],
+                [sg.Text("# of Entanglements Performed: "), sg.Text('0', key='-NUM_ENT-', size=(10, 1))],
+                [sg.Text("# of Swaps: "), sg.Text('0', key='-NUM_SWAPS-', size=(10, 1))],
+                [sg.Text("", key='-FINISHED-', size=(30, 3))],
+                [sg.Text("", size=(27, 1))],
                 ]
 
-    layout2 = [[sg.Col(info_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas')],
-            [sg.Exit(key="Exit"), sg.Button("Add Edge", key="-ADD_NODE-"),
-                sg.Button("Update Graph", key="-UPDATE-"), sg.Button("Finished")],
-            [sg.Text("")],
-            ]
+layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
+        [sg.Button("Next Swap", key="-SWAP-"), sg.Exit(key="Exit")],
+        [sg.Text("")],
+        ]
 
-    # Create the second window
-    window2 = sg.Window('Min Swap Program', layout2, finalize=True, size=(950, 400), margins=(0, 0))
-    window2.refresh()
-    window2.move_to_center()
+# Create the second window
+window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1200, 430), margins=(0, 0))
+window3.move_to_center()
 
-    # Update the second window
-    window2["-NUM_VAR-"].update(num_nodes)
-    window2["-NUM_EDGES-"].update(num_edges)
+# Update the third window
+window3["-NUM_VAR2-"].update(num_nodes)
+window3["-NUM_EDGES2-"].update(num_edges)
 
-    # Draws the initial figure to the window
-    figure2 = gui_func.makePlot(QUBO_Graph)
-    figure_agg2 = gui_func.draw_figure(window2['figCanvas'].TKCanvas, figure2)
+# Draws the initial QUBO graph to the window
+figure_q = gui_func.makePlot(QUBO_Graph)
+figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
 
-    window2.refresh()
-    window2.move_to_center()
+# Draws the HH graph to the window
+figure_l = gui_func.makeLatticePlot(lattice_Graph)
+figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
 
-    # Event Loop to process "events"
-    while True:
-        event, values = window2.read()
-        if event in (sg.WIN_CLOSED, "Exit"):
-            window2.close()
-            sys.exit()
+window3.refresh()
+window3.move_to_center()
 
-        if event == "-ADD_NODE-":
-            if values["-NODE1-"] == values["-NODE2-"]:
-                window2["-ERROR2-"].update("Self loops are not allowed")
+window3["-NUM_ENT-"].update(num_entangles)
 
-            elif (values["-NODE1-"], values["-NODE2-"]) in QUBO_Graph.edges():
-                window2["-ERROR2-"].update("That edge already exists in the graph")
+solved = False
 
-            else:
-                window2["-ERROR2-"].update("")
-                QUBO_Graph.add_edge(values["-NODE1-"], values["-NODE2-"])
+# Event Loop to process "events"
+while True:
+    event, values = window3.read()
+    if event in (sg.WIN_CLOSED, "Exit"):
+        break
 
-                num_edges += 1
-                window2["-NUM_EDGES-"].update(num_edges)
+    elif event == "-SWAP-" and not solved:
 
-        if event == "-UPDATE-":
-            QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+        # Do the swaps
+        lattice_Graph, new_swaps, swap_list, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
 
-            gui_func.delete_figure_agg(figure_agg2)
-            figure2 = gui_func.makePlot(QUBO_Graph)
-            figure_agg2 = gui_func.draw_figure(window2['figCanvas'].TKCanvas, figure2)
+        # Get the current entanglements
+        lattice_Graph, QUBO_Graph, entangles_to_do, new_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
-            #fca = gui_func.updateFigure(fca, window2, QUBO_Graph, 'figCanvas')
+        # Update the window
+        num_entangles += new_entangles
+        window3["-NUM_ENT-"].update(num_entangles)
 
-        if event == "Finished":
-            break
+        num_swaps += new_swaps
+        window3["-NUM_SWAPS-"].update(num_swaps)
 
-    # Can put this after the graph mapping if that takes a while
-    # Just pop up a message saying that it's mapping
-    window2.close()
+        # And the graphs
+        gui_func.delete_figure_agg(figure_agg_q)
+        figure_q = gui_func.makePlot(QUBO_Graph)
+        figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
 
-    """
-    Data Processing for the Third Window:
-        Color the graph
-    """
+        gui_func.delete_figure_agg(figure_agg_l)
+        figure_l = gui_func.makeLatticePlot(lattice_Graph)
+        figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
 
-    QUBO_Graph = graph_func.color_graph(QUBO_Graph)
-
-    # Graph info
-    # color: the color of the node, gives info on the degree of the node
-    # pos: position of the node for graphing purposes only
-    # placed: whether or not it has been put on the qubit lattice
-    # tail_start: whether it starts an end tail
-    # tail_end: whether it ends an end tail
-    # embedded: the number of the node on the lattice it is embedded at
-
-    """
-    Creating the Qubit Graph
-    """
-
-    lattice_Graph = graph_func.import_lattice()
-
-    # Graph info
-    # color: the color of the node
-    # pos: position of the node for graphing purposes only
-    # qubit: the number of the node of the QUBO graph that has been
-    #        placed at that node
-    # size: the size of the dot, for graphing purposes only
-    # color: the color of the node, for graphing purposes only
-
-    """
-    Mapping the QUBO to the lattice:
-        This is where the mapping algorithm is applied
-    """
-
-    lattice_Graph, QUBO_Graph = graph_func.place_initial_qubits(lattice_Graph, QUBO_Graph)
-    lattice_Graph, QUBO_Graph = graph_func.place_green_qubits(lattice_Graph, QUBO_Graph)
-
-    # entangles is a list of all the qubits that need to be entangled.
-    # It is a list of tuples
-    entangles_to_do = list(QUBO_Graph.edges)
-    num_swaps = 0
-
-    # Perform initial entanglements
-    lattice_Graph, QUBO_Graph, entangles_to_do, num_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
-
-    """
-    Third Window:
-        Actually run the min swap alorgithm
-    """
-
-    run_time_column = [[sg.Text("# of Qubits: "), sg.Text(key='-NUM_VAR2-', size=(10, 1))],
-                    [sg.Text("# of Entanglements Needed: "), sg.Text(key='-NUM_EDGES2-', size=(10, 1))],
-                    [sg.Text("# of Entanglements Performed: "), sg.Text('0', key='-NUM_ENT-', size=(10, 1))],
-                    [sg.Text("# of Swaps: "), sg.Text('0', key='-NUM_SWAPS-', size=(10, 1))],
-                    [sg.Text("", key='-FINISHED-', size=(30, 3))],
-                    [sg.Text("", size=(27, 1))],
-                    ]
-
-    layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
-            [sg.Button("Next Swap", key="-SWAP-"), sg.Exit(key="Exit")],
-            [sg.Text("")],
-            ]
-
-    # Create the second window
-    window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1200, 430), margins=(0, 0))
-    window3.move_to_center()
-
-    # Update the third window
-    window3["-NUM_VAR2-"].update(num_nodes)
-    window3["-NUM_EDGES2-"].update(num_edges)
-
-    # Draws the initial QUBO graph to the window
-    figure_q = gui_func.makePlot(QUBO_Graph)
-    figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
-
-    # Draws the HH graph to the window
-    figure_l = gui_func.makeLatticePlot(lattice_Graph)
-    figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
-
-    window3.refresh()
-    window3.move_to_center()
-
-    window3["-NUM_ENT-"].update(num_entangles)
-
-    solved = False
-
-    # Event Loop to process "events"
-    while True:
-        event, values = window3.read()
-        if event in (sg.WIN_CLOSED, "Exit"):
-            break
-
-        elif event == "-SWAP-" and not solved:
-
-            # Do the swaps
-            lattice_Graph, new_swaps, swap_list, entangles_to_do = graph_func.perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
-
-            # Get the current entanglements
-            lattice_Graph, QUBO_Graph, entangles_to_do, new_entangles = graph_func.get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
-
-            # Update the window
-            num_entangles += new_entangles
-            window3["-NUM_ENT-"].update(num_entangles)
-
-            num_swaps += new_swaps
-            window3["-NUM_SWAPS-"].update(num_swaps)
-
-            # And the graphs
-            gui_func.delete_figure_agg(figure_agg_q)
-            figure_q = gui_func.makePlot(QUBO_Graph)
-            figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
-
-            gui_func.delete_figure_agg(figure_agg_l)
-            figure_l = gui_func.makeLatticePlot(lattice_Graph)
-            figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
-
-            if len(entangles_to_do) == 0:
-                window3["-FINISHED-"].update("Congratulations!! All qubits have been properly entangled!")
-                solved = True
-                
-    window3.close()
-    sys.exit()
+        if len(entangles_to_do) == 0:
+            window3["-FINISHED-"].update("Congratulations!! All qubits have been properly entangled!")
+            solved = True
+            
+window3.close()
+sys.exit()

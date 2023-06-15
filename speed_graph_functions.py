@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed June 7th
+Created on Wed June 14th
 
 @author: sambringman
 """
 
 import networkx as nx
-from pandas import read_csv
 import random
+from pandas import read_csv
 import copy
+
+"""
+Functions to Create the Graphs
+"""
 
 # Paths to the HH lattice data files
 HH_nodes_filepath = "./HH_Nodes.txt"
@@ -29,7 +33,7 @@ def make_qubo_graph(num_nodes, filepath):
 
         graph = nx.Graph()
         for node in list_nodes:
-            graph.add_node(node, color='b', pos=[0.2, 0.2], placed=False, tail_start=False, tail_end=False, embedded=-1)
+            graph.add_node(node, green=False, placed=False, tail_start=False, tail_end=False, embedded=-1)
 
     # Else, add the edges from the filepath
     else:
@@ -40,7 +44,7 @@ def make_qubo_graph(num_nodes, filepath):
         # Generates the nodes
         graph = nx.Graph()
         for node in list_nodes:
-            graph.add_node(node, color='b', pos=[0.2, 0.2], placed=False, tail_start=False, tail_end=False, embedded=-1)
+            graph.add_node(node, green=False, placed=False, tail_start=False, tail_end=False, embedded=-1)
 
         QUBO_edges_info = read_csv(filepath, skiprows=1)
 
@@ -51,27 +55,16 @@ def make_qubo_graph(num_nodes, filepath):
     return graph, num_nodes, num_edges, list_nodes
 
 
-
-# This takes in a graph and colors it according to my color
-# definitions
-def color_graph(graph):
-    # Green qubits count as placed, because they will be put on in specific
-    # spots at the end
-
-    # First, turn everything yellow
-    for node in graph.nodes:
-        graph.nodes[node]['color'] = 'y'
+#This function finds the green nodes
+def find_greens(graph):
 
     # Second, find the end nodes and the end tails
     for node in graph.nodes:
-        # Blue means unconnected
-        if graph.degree[node] == 0:
-            graph.nodes[node]['color'] = 'b'
 
         # Upon finding an end node, trace it back until there's a node of degree
         # greater than 2
-        elif graph.degree[node] == 1:
-            graph.nodes[node]['color'] = 'g'
+        if graph.degree[node] == 1:
+            graph.nodes[node]['green'] = True
             graph.nodes[node]['tail_end'] = True
 
             cur_node = node
@@ -92,7 +85,7 @@ def color_graph(graph):
 
                     elif graph.degree[next_node] == 2:
                         # print("Colored")
-                        graph.nodes[next_node]['color'] = 'g'
+                        graph.nodes[next_node]['green'] = True
                         prev_nodes.append(next_node)
                         cur_node = next_node
 
@@ -102,24 +95,7 @@ def color_graph(graph):
                         #print("End of chain")
                         graph.nodes[cur_node]['tail_start'] = True
                         in_tail = False
-
-    # Third, color the max degree nodes red
-    max_degree = max(graph.degree, key=lambda x: x[1])[1]
-
-    # If the max is less than 3, it doesn't matter because the entanglement
-    # is a chain
-    max_degree = max(max_degree, 3)
-
-    # Checks if it is the node with the max degree
-    for node in graph.nodes:
-
-        if graph.degree[node] == max_degree:
-            graph.nodes[node]['color'] = 'r'
     
-    # Next, color the edges, which at this stage will always be red
-    for edge in graph.edges:
-        graph.edges[edge]['color'] = 'r'
-
     return graph
 
 
@@ -134,8 +110,7 @@ def import_lattice():
 
     for index, row in HH_node_info.iterrows():
 
-        lattice_graph.add_node(index, pos=[row['x_coor'], row['y_coor']],
-                            qubit=-1, size=10, color='k')
+        lattice_graph.add_node(index, qubit=-1)
 
     for index, row in HH_edges_info.iterrows():
 
@@ -144,30 +119,8 @@ def import_lattice():
     return lattice_graph
 
 
-# This takes in a lattice and colors it
-def color_lattice(graph, QUBO):
-
-    HH_node_info = read_csv(HH_nodes_filepath, skiprows=1)
-
-    # First, turn everything black
-    for index, row in HH_node_info.iterrows():
-        graph.nodes[index]['pos'] = (row['x_coor'], row['y_coor'])
-        graph.nodes[index]['size'] = 100
-        graph.nodes[index]['color'] = 'k'
-
-    # Then, change the colors to match the colors of the QUBO graph
-    for node in QUBO.nodes:
-        embed = QUBO.nodes[node]['embedded']
-        graph.nodes[embed]['color'] = QUBO.nodes[node]['color']
-        graph.nodes[embed]['size'] = 300
-
-    return graph
-
-
-
-
 """
-Placement Functions
+Functions to Map the QUBO to the Lattice
 """
 
 
@@ -175,8 +128,6 @@ Placement Functions
 def place_node(lattice_Graph, QUBO_Graph, lattice_node, qubo_node):
     # Places the node
     lattice_Graph.nodes[lattice_node]['qubit'] = qubo_node
-    lattice_Graph.nodes[lattice_node]['color'] = QUBO_Graph.nodes[qubo_node]['color']
-    lattice_Graph.nodes[lattice_node]['size'] = 300
 
     QUBO_Graph.nodes[qubo_node]['placed'] = True
     QUBO_Graph.nodes[qubo_node]['embedded'] = lattice_node
@@ -238,24 +189,11 @@ def find_open_node(lattice_Graph, QUBO_Graph, start_node, connecting_node):
     return(placement_node)
 
 
-# This code places the yellow and red qubits
-"""
-Process:
-    WARNING!! This code always expects a graph with green, yellow, and red nodes
-    Place an initial yellow qubit
-    Place a qubit that is a neighbor of the first qubit
-    Continue to place the neighbors of the qubits. If a qubit has no unplaced neighbors,
-        place a random qubit
-"""
 def place_initial_qubits(lattice_Graph, QUBO_Graph):
 
     # Places the first qubit
-    # If a smal QUBO, place a yellow node first, else place a red node
-    # This is just so the red nodes are slightly more centralized in the graph
-    if len(QUBO_Graph.nodes) < 10:
-        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['color'] == 'y']
-    else:
-        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if node['color'] == 'r']
+    #print(QUBO_Graph.nodes(data=True))
+    cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if not node['green']]
 
     # Picks the first node
     rand_node = random.choices(cand_qubits, k=1)[0]
@@ -269,22 +207,24 @@ def place_initial_qubits(lattice_Graph, QUBO_Graph):
     prev_node = rand_node
 
     # Places the rest of the qubits that are not green
-    for i in range(len([x for x, node in QUBO_Graph.nodes(data=True) if node['color'] != 'g']) - 1):
+    for i in range(len([x for x, node in QUBO_Graph.nodes(data=True) if not node['green']]) - 1):
 
         # Chooses new candidate qubits
-        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if (x in nx.neighbors(QUBO_Graph, prev_node) and node['placed'] is False and node['color'] != 'g')]
+        cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if (x in nx.neighbors(QUBO_Graph, prev_node) and not node['placed'] and not node['green'])]
 
         # If all the neighbors of the previous node have been placed, then randomly
         # choose from unplaced qubits
-        if cand_qubits == []:
-            cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if (node['placed'] is False and node['color'] != 'g')]
+        if not cand_qubits:
+            cand_qubits = [x for x, node in QUBO_Graph.nodes(data=True) if (not node['placed'] and not node['green'])]
         
         #print(f"The candidate qubits for the next placement is {cand_qubits}")
 
         rand_node = random.choices(cand_qubits, k=1)[0]
 
-        #print(f"The next node to be placed is {rand_node}")
+        #print(f"The next node to be placed is {rand_node} at lattice location {i+1}")
 
+        # The lattice point is i + 1 because we are placing the qubits onto the
+        # lattice sequentially
         place_node(lattice_Graph, QUBO_Graph, i+1, rand_node)
 
         prev_node = rand_node
@@ -294,19 +234,7 @@ def place_initial_qubits(lattice_Graph, QUBO_Graph):
     return lattice_Graph, QUBO_Graph
 
 
-# This is the code that places the green node chains
-"""
-Process:
-    Choose a green node that connects the chain to the main lattice
-    Try to place it adjacent to the node it connects to on the main lattice
-    If there are no open nodes on the main lattice, search for the closest empty spot to put it
-    Once the start of the chain is placed, continue to place the chain as long as there are open spaces
-    If there are not open spaces adjacent to the previously placed node, then put the next node in the chain 
-        into an open space as closely as possible
-    Repeat until the whole chain is placed
-    Repeat for each chain
-"""
-
+# This places all the green qubits
 def place_green_qubits(lattice_Graph, QUBO_Graph):
 
     #print("Beginning placement of green nodes")
@@ -321,7 +249,9 @@ def place_green_qubits(lattice_Graph, QUBO_Graph):
         
         #print(f"This chain will connect to the main graph at {connecting_node}, which is embedded at location {QUBO_Graph.nodes[connecting_node]['embedded']}")
 
-        while QUBO_Graph.nodes[start_node]['placed'] is False:
+        while True:
+
+            placed = False
 
             # Checks if there is an open spot next to the connecting node
             # The connecting node will always already be embedded, so it will have a spot on the lattice graph
@@ -331,12 +261,13 @@ def place_green_qubits(lattice_Graph, QUBO_Graph):
                 if lattice_Graph.nodes[placement_spot]['qubit'] == -1:
 
                     place_node(lattice_Graph, QUBO_Graph, placement_spot, start_node)
+                    placed = True
                     
                     #print(f"The node {start_node} has been placed on the lattice at location {placement_spot}")
-
                     break
             
-            if QUBO_Graph.nodes[start_node]['placed'] is False:
+            # If a placement spot hasn't been found, search further away
+            if not placed:
 
                 placement_spot = find_open_node(lattice_Graph, QUBO_Graph, start_node, connecting_node)
 
@@ -375,9 +306,6 @@ def swap_qubits(lattice_Graph, QUBO_Graph, lattice_point1, lattice_point2):
     qubit_2 = lattice_Graph.nodes[lattice_point2]['qubit']
 
     lattice_Graph.nodes[lattice_point1]['qubit'], lattice_Graph.nodes[lattice_point2]['qubit'] = lattice_Graph.nodes[lattice_point2]['qubit'], lattice_Graph.nodes[lattice_point1]['qubit']
-    lattice_Graph.nodes[lattice_point1]['color'], lattice_Graph.nodes[lattice_point2]['color'] = lattice_Graph.nodes[lattice_point2]['color'], lattice_Graph.nodes[lattice_point1]['color']
-    lattice_Graph.nodes[lattice_point1]['size'], lattice_Graph.nodes[lattice_point2]['size'] = lattice_Graph.nodes[lattice_point2]['size'], lattice_Graph.nodes[lattice_point1]['size']
-
 
     if qubit_1 != -1 and qubit_2 != -1:
 
@@ -400,8 +328,6 @@ def get_current_entangles(lattice_Graph, QUBO_Graph, list_of_entangles):
 
     #print(f"Here is the list of qubits that need to be entangled: {list_of_entangles}")
 
-    num_entangles = 0
-
     for node_1, node_2 in lattice_Graph.edges:
 
         # This function transforms the edge in the lattice graph to an edge in the 
@@ -416,32 +342,26 @@ def get_current_entangles(lattice_Graph, QUBO_Graph, list_of_entangles):
 
         elif edge1 in list_of_entangles:
             #print(f"{edge1} was entangled")
-
-            QUBO_Graph.edges[edge1]['color'] = 'g'
             
             list_of_entangles.remove(edge1)
-            num_entangles += 1
 
         elif edge2 in list_of_entangles:
             #print(f"{edge2} was entangled")
-
-            QUBO_Graph.edges[edge2]['color'] = 'g'
             
             list_of_entangles.remove(edge2)
-            num_entangles += 1
         
         else:
             #print(f"{edge1} and {edge2} were not in the list of entanglements")
             pass
     
-    return lattice_Graph, QUBO_Graph, list_of_entangles, num_entangles
+    return lattice_Graph, QUBO_Graph, list_of_entangles
 
 
 # This function finds the next position for the lattice graph to swap to
 def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles):
 
     # Find the next graph to swap to
-    shortest_swap = [-1, -1, 100] # node 1, node 2, swap distance
+    shortest_swap = [-1, -1, 100000000] # node 1, node 2, swap distance
 
     # Check the distances between the entanglements that still need to be done
     for entangle in list_of_entangles:
@@ -449,7 +369,8 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles):
         #print(f"The distance between the qubits {entangle[0]} and {entangle[1]} is {len(path)}")
         #print(f"\tThis would be along the path {path}")
 
-        if len(path) < shortest_swap[2]:
+        # A path length of 3 is the shortest possible swap - 1 swap, so it should be done
+        if len(path) < shortest_swap[2] or len(path) == 3:
             #print(f"\tThis path of distance {len(path)} is shorter than {shortest_swap[2]}, so it will be done instead")
             shortest_swap = [entangle[0], entangle[1], len(path)]
     
@@ -473,7 +394,9 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles):
     # Entangle everythings that needs to be entangled
 
     return lattice_Graph, swaps, swap_list, list_of_entangles
-    
+
+
+
 
 # Function that copies one graph onto another, for the purpose of resetting the graph
 def copy_graph(template, graph_to_reset):
@@ -487,35 +410,45 @@ def copy_graph(template, graph_to_reset):
 
 
 # Function that copies one graph onto another, for the purpose of resetting the graph
-def reconstruct_graph(nodes, graph_to_construct):
+def reconstruct_lattice(qubits, graph_to_construct):
 
-    # We only need to reset nodes, because all the information is in the nodes.
-    # The only information in the edges is the color of the edge in the QUBO graph
-    # to indicate entanglement
-    graph_to_construct.update(nodes=nodes)
+    for node in graph_to_construct:
+        graph_to_construct.nodes[node]["qubit"] = qubits[node]
 
     return(graph_to_construct)
-    
+
+# Function that copies one graph onto another, for the purpose of resetting the graph
+def reconstruct_qubo(embeds, graph_to_construct):
+
+    for node in graph_to_construct:
+        graph_to_construct.nodes[node]["embedded"] = embeds[node]
+
+    return(graph_to_construct)
+
 
 # This is the code to iterate through trial graphs to find the best solution
 def iterate_through(lattice_Graph, QUBO_Graph, iterations):
     # First thing to do is save all the original variables
     original_QUBO = copy.deepcopy(QUBO_Graph)
     original_lattice = copy.deepcopy(lattice_Graph)
-    start_lattice_nodes = []
     best_lattice_nodes = []
+    best_qubo_embed = []
 
     # Then, get the variables for the process
+    iter_num = 0
     list_of_swap_nums = []
-    best_swap_list = [i for i in range(1000)]
+    best_swap_list = []
+    best_swap_num = 100000000000
 
-    for i in range(iterations):
+    while iter_num < iterations:
 
         # Refresh everything
         QUBO_Graph = copy_graph(original_QUBO, QUBO_Graph)
         lattice_Graph = copy_graph(original_lattice, lattice_Graph)
         solved = False
-        swaps = 0
+        early_break = False
+        swap_num = 0
+        swap_list = []
 
         # Map to the lattice
         lattice_Graph, QUBO_Graph = place_initial_qubits(lattice_Graph, QUBO_Graph)
@@ -523,36 +456,58 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
 
         # We have to save this for when it finds the best path
         # However, the only important parts of the graph that we need are the nodes
-        start_lattice_nodes = list(lattice_Graph.nodes(data=True))
+        start_lattice_nodes = copy.copy([value for node, value in lattice_Graph.nodes(data="qubit")])
+        start_qubo_embed = copy.copy([value for node, value in QUBO_Graph.nodes(data="embedded")])
+
+        #print(start_lattice_nodes)
 
         # Do initial entangling
         # entangles is a list of all the qubits that need to be entangled.
         # It is a list of tuples
         entangles_to_do = list(QUBO_Graph.edges)
         # num_entangles does nothing here
-        swap_list = []
 
-        lattice_Graph, QUBO_Graph, entangles_to_do, num_entangles = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
+        lattice_Graph, QUBO_Graph, entangles_to_do = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
         while not solved:
             # Do the swaps
             lattice_Graph, new_swaps, new_swap_list, entangles_to_do = perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
-            swaps += new_swaps
+            swap_num += new_swaps
             swap_list += new_swap_list
 
             # Get the current entanglements
-            lattice_Graph, QUBO_Graph, entangles_to_do, new_entangles = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
+            lattice_Graph, QUBO_Graph, entangles_to_do = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
-            while not entangles_to_do:
+
+            # If we have already gone past the best swap num, immediately stop
+            if swap_num >= best_swap_num:
+                early_break = True
+                break
+
+            # If all the entanglments are done, quit
+            if not entangles_to_do:
+                
                 solved = True
-                #print(f"Finished solving attempt {i + 1} - {swaps} swaps")
+                #print(f"Finished solving attempt {i + 1} - {swap_num} swap_num")
 
-                list_of_swap_nums.append(swaps)
+        # Stuff done after the graphs are finished
+        # We don't want to count early breaks as part of the average swap number
+        if not early_break:
+            list_of_swap_nums.append(swap_num)
+            early_break = False
 
-                if len(swap_list) < len(best_swap_list):
-                    best_swap_list = swap_list
-                    best_lattice_nodes = start_lattice_nodes
+        if swap_num < best_swap_num:
+            best_swap_num = swap_num
+            best_swap_list = swap_list
+            best_lattice_nodes = copy.copy(start_lattice_nodes)
+            best_qubo_embed = copy.copy(start_qubo_embed)
+            #print("\n\n\n")
+            #print(best_lattice_nodes)
 
-                    print(f"A new best swap path was found, with a length of {len(swap_list)}")
+            print(f"A new best swap path was found, with a length of {len(swap_list)}")
+        
+        iter_num += 1
+
+
     
-    return best_swap_list, list_of_swap_nums, best_lattice_nodes
+    return best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed

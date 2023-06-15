@@ -47,8 +47,14 @@ def set_scale(scale):
 # Function to make the plot that will be drawn to the window
 def makePlot(graph):
 
-    color_array = list(graph.nodes[i]['color'] for i in graph.nodes())
-    edge_array = list(graph.edges[i]['color'] for i in graph.edges())
+    # Checks if the graph has a color attibute or not
+    try:
+        color_array = list(graph.nodes[i]['color'] for i in graph.nodes())
+        edge_array = list(graph.edges[i]['color'] for i in graph.edges())
+
+    except KeyError:
+        color_array = ['b' for i in graph.nodes]
+        edge_array = ['k' for i in graph.edges]
 
     plt.clf()
 
@@ -66,6 +72,7 @@ def makePlot(graph):
 # Function to make the qubit lattice plot
 def makeLatticePlot(graph):
 
+    # The lattice graph should always be colored by the time this is called
     color_array = list(graph.nodes[i]['color'] for i in graph.nodes())
     size_array = list(graph.nodes[i]['size'] for i in graph.nodes())
     labels = {i: graph.nodes[i]['qubit'] for i in graph.nodes()}
