@@ -105,3 +105,21 @@ def makeSwapHist(swaps):
     plt.hist(swaps, bins=range(min(swaps), max(swaps)+2), align='left', rwidth=0.8)
 
     return fig
+
+
+"""
+Other graph makers
+"""
+
+def init_entangles_v_swap_num(init_entangles, swap_num):
+
+    fig = plt.figure('evs', figsize=(4, 3.5))
+    set_scale(fig.dpi/75)
+
+    plt.title("Initial Entanglements v. Swap Number")
+    plt.xlabel("Initial # of Entangles")
+    plt.ylabel("# of Swaps")
+
+    plt.scatter(init_entangles, swap_num)
+
+    return fig

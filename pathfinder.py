@@ -22,12 +22,9 @@ This is the code that will run the minimum swap algorithm a sufficient number of
  to find the best path
 
  Speed Ups:
-    Don't copy the QUBO_Graph. That can be manually reset easily, because it doesn't
-        require many edits
-    Figure out how long it takes to copy the lattice graph as opposed to just writing over it
-    Actually, overwriting would be easiet I think.
-    Can make a deepcopy of the original and a deepcopy of the test graph. At the beginning of each
-        run, set the test graph equal to the original. Then, deepcopy is only usde twice
+    Find out if initial entanglements just from the starting configuration has any 
+        predicting power over the number of swaps it takes to solve
+    Make green nodes immovable?
 """
 
 # Sets the font options
@@ -211,7 +208,7 @@ window2.close()
 
 start_time = time.perf_counter()
 
-best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations)
+best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, init_entangles = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations)
 #cProfile.run('best_swap_list, list_of_swap_nums, best_lattice_nodes = graph_func.iterate_through(lattice_Graph, QUBO_Graph, iterations)')
 #print(best_lattice_nodes)
 #print(best_qubo_embed)
@@ -255,7 +252,7 @@ route_column = [[sg.Text("Best Path:", size=(35, 1))],
             ]
 
 layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
-        [sg.Col(route_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas4')],
+        [sg.Col(route_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas4'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas5')],
         [sg.Exit(key="Exit")],
         [sg.Text("")],
         ]
@@ -278,13 +275,17 @@ window3["-RUN_TIME_TRIAL-"].update(f"{round((run_time / iterations) * 1000, ndig
 figure_q = gui_func.makePlot(QUBO_Graph)
 figure_agg_q = gui_func.draw_figure(window3['figCanvas2'].TKCanvas, figure_q)
 
-# Draw the histogram plot to the window
+# Draw the lattice graph to the window
 figure_l = gui_func.makeLatticePlot(lattice_Graph)
 figure_agg_l = gui_func.draw_figure(window3['figCanvas3'].TKCanvas, figure_l)
 
 # Draw the histogram plot to the window
 figure_hist = gui_func.makeSwapHist(list_of_swap_nums)
 figure_agg_hist = gui_func.draw_figure(window3['figCanvas4'].TKCanvas, figure_hist)
+
+# Draw the histogram plot to the window
+init_entangle_fig = gui_func.init_entangles_v_swap_num(init_entangles, list_of_swap_nums)
+figure_agg_hist = gui_func.draw_figure(window3['figCanvas5'].TKCanvas, init_entangle_fig)
 
 window3.refresh()
 window3.move_to_center()

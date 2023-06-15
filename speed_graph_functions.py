@@ -438,7 +438,11 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
     iter_num = 0
     list_of_swap_nums = []
     best_swap_list = []
-    best_swap_num = 100000000000
+    best_swap_num = 10000000
+
+    # Variables for testing things
+    num_entangles = len(QUBO_Graph.edges)
+    init_entangles = []
 
     while iter_num < iterations:
 
@@ -446,7 +450,6 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
         QUBO_Graph = copy_graph(original_QUBO, QUBO_Graph)
         lattice_Graph = copy_graph(original_lattice, lattice_Graph)
         solved = False
-        early_break = False
         swap_num = 0
         swap_list = []
 
@@ -469,7 +472,17 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
 
         lattice_Graph, QUBO_Graph, entangles_to_do = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
+        init_entangles.append(num_entangles - len(entangles_to_do))
+
         while not solved:
+
+            # If not enough entanglements were made with the intiial configuration, end the attempt
+            if len(entangles_to_do) > 0.5 * num_entangles:
+
+                # Something that's high and won't be the best
+                swap_num = 2 * num_entangles
+                break
+
             # Do the swaps
             lattice_Graph, new_swaps, new_swap_list, entangles_to_do = perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do)
             swap_num += new_swaps
@@ -478,23 +491,18 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             # Get the current entanglements
             lattice_Graph, QUBO_Graph, entangles_to_do = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
-
             # If we have already gone past the best swap num, immediately stop
             if swap_num >= best_swap_num:
-                early_break = True
                 break
-
+            
             # If all the entanglments are done, quit
             if not entangles_to_do:
-                
                 solved = True
                 #print(f"Finished solving attempt {i + 1} - {swap_num} swap_num")
 
         # Stuff done after the graphs are finished
         # We don't want to count early breaks as part of the average swap number
-        if not early_break:
-            list_of_swap_nums.append(swap_num)
-            early_break = False
+        list_of_swap_nums.append(swap_num)
 
         if swap_num < best_swap_num:
             best_swap_num = swap_num
@@ -504,10 +512,10 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             #print("\n\n\n")
             #print(best_lattice_nodes)
 
-            print(f"A new best swap path was found, with a length of {len(swap_list)}")
+            print(f"A new best swap path was found, with a length of {swap_num}")
         
         iter_num += 1
 
 
     
-    return best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed
+    return best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, init_entangles
