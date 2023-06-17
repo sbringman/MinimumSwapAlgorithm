@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Jun 3
+Created on Sat Jun  17
 
 @author: sambringman
 """
@@ -15,7 +15,7 @@ import time
 
 import gui_functions as gui_func
 import graph_functions as graph_func
-import speed_graph_functions as sgf
+import test_speed_funcs as sgf
 
 """
 This is the code that will run the minimum swap algorithm a sufficient number of times
