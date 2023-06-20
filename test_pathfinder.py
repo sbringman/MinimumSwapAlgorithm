@@ -22,13 +22,9 @@ This is the code that will run the minimum swap algorithm a sufficient number of
  to find the best path
 
  Speed Ups:
-    Rework the swapping part so that it randomly picks a swap to do from all the shortest paths 
-        instead of the first one it finds
-    That way, instead of testing thousands of random graphs, find a good looking graph and test it 
-        50 times. Then find another good looking graph and test it fifty times, et cetera
-    If there is a strong correlation between initial entanglements between non-green nodes and 
-        minimum swap paths for the graph, it might be faster to check if the graph looks favorable
-        before putting on the green nodes
+    We need to leverage the fact that I can store the distance between every pair of points
+        on the lattice easily. That won't change between QUBOs. Can I use this to pick out the
+        best paths through the lattice?
 """
 
 # Sets the font options
