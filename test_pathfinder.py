@@ -25,7 +25,11 @@ This is the code that will run the minimum swap algorithm a sufficient number of
     We need to leverage the fact that I can store the distance between every pair of points
         on the lattice easily. That won't change between QUBOs. Can I use this to pick out the
         best paths through the lattice?
-    I think I think I can use this distance function for a lot. 
+    Right now, the distance adjustments function doesn't change the time required for the total run.
+        It actually increases it a little I think, at least for a strike count of 50. However,
+        it does recude the number of bad graphs per good graph from 26 to 10, which is a success.
+        The next step will be to have it get better at reducing the distance. One way to do this
+        might be to have it be able to move qubits to a different spot, instead of just swapping them.
 """
 
 # Sets the font options
@@ -214,7 +218,7 @@ best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, iteratio
 #print(best_lattice_nodes)
 #print(best_qubo_embed)
 # Needs to also print out the original lattice placement
-print(f"The best path was {best_swap_list}")
+#print(f"The best path was {best_swap_list}")
 
 # Clean up calculations
 best_swap = len(best_swap_list)
