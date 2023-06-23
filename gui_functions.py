@@ -123,3 +123,16 @@ def init_entangles_v_swap_num(init_entangles, swap_num):
     plt.scatter(init_entangles, swap_num)
 
     return fig
+
+def graph_distance_v_ave_swaps(graph_distance, ave_swap_num):
+
+    fig = plt.figure('evs', figsize=(4, 3.5))
+    set_scale(fig.dpi/75)
+
+    plt.title("Initial Graph Distance v. Ave Swap Number")
+    plt.xlabel("Initial Total Graph Distance")
+    plt.ylabel("Ave # of Swaps")
+
+    plt.scatter(graph_distance, ave_swap_num)
+
+    return fig

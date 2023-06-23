@@ -25,6 +25,7 @@ This is the code that will run the minimum swap algorithm a sufficient number of
     We need to leverage the fact that I can store the distance between every pair of points
         on the lattice easily. That won't change between QUBOs. Can I use this to pick out the
         best paths through the lattice?
+    I think I think I can use this distance function for a lot. 
 """
 
 # Sets the font options
@@ -208,7 +209,7 @@ window2.close()
 
 start_time = time.perf_counter()
 
-best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, init_entangles, iterations = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations)
+best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, iterations, graph_distance, ave_swap_list = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations)
 #cProfile.run('best_swap_list, list_of_swap_nums, best_lattice_nodes = graph_func.iterate_through(lattice_Graph, QUBO_Graph, iterations)')
 #print(best_lattice_nodes)
 #print(best_qubo_embed)
@@ -284,8 +285,9 @@ figure_hist = gui_func.makeSwapHist(list_of_swap_nums)
 figure_agg_hist = gui_func.draw_figure(window3['figCanvas4'].TKCanvas, figure_hist)
 
 # Draw the histogram plot to the window
-init_entangle_fig = gui_func.init_entangles_v_swap_num(init_entangles, list_of_swap_nums)
-figure_agg_hist = gui_func.draw_figure(window3['figCanvas5'].TKCanvas, init_entangle_fig)
+#extra_fig = gui_func.graph_distance_v_ave_swaps(init_entangles, swap_num)
+extra_fig = gui_func.graph_distance_v_ave_swaps(graph_distance, ave_swap_list)
+figure_agg_hist = gui_func.draw_figure(window3['figCanvas5'].TKCanvas, extra_fig)
 
 window3.refresh()
 window3.move_to_center()
@@ -295,6 +297,6 @@ while True:
     event, values = window3.read()
     if event in (sg.WIN_CLOSED, "Exit"):
         break
-            
+
 window3.close()
 sys.exit()
