@@ -2,8 +2,6 @@
 
 This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 
-## Outline of the Algorithm
-
 ## Definitions: 
 * QUBO graph - A graph where the nodes are the variables in the QUBO and the edges are the entanglements needed to solve the QUBO.
 * Qubit lattice - The graph depicting the qubits on the quantum computer and the connections between them
