@@ -613,8 +613,6 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
         # Once we find a graph that works well, we'll just run that graph a bunch of times
         attempts = 1
 
-        start_time = time.perf_counter()
-
         while True:
 
             # Refresh everything
@@ -629,21 +627,19 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             lattice_Graph, QUBO_Graph = place_initial_qubits(lattice_Graph, QUBO_Graph)
             lattice_Graph, QUBO_Graph = place_green_qubits(lattice_Graph, QUBO_Graph)
 
-            graph_dist = calc_graph_total_distance(QUBO_Graph, all_path_lengths, entangles_to_do)
-            print(f"The graph distance before adjustments is {graph_dist}")
+            #graph_dist = calc_graph_total_distance(QUBO_Graph, all_path_lengths, entangles_to_do)
+            #print(f"The graph distance before adjustments is {graph_dist}")
 
             lattice_Graph, QUBO_Graph = distance_adjustments(lattice_Graph, QUBO_Graph, all_path_lengths)
 
-            graph_dist = calc_graph_total_distance(QUBO_Graph, all_path_lengths, entangles_to_do)
-            print(f"The graph distance after adjustments is {graph_dist}")
+            #graph_dist = calc_graph_total_distance(QUBO_Graph, all_path_lengths, entangles_to_do)
+            #print(f"The graph distance after adjustments is {graph_dist}")
 
             # Do initial entangling
             lattice_Graph, QUBO_Graph, entangles_to_do = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do)
 
             graph_dist = calc_graph_total_distance(QUBO_Graph, all_path_lengths, entangles_to_do)
-            print(f"The graph distance after initial entangles is {graph_dist}")
-
-            print(f"The total graph distance of this graph is {graph_dist}")
+            #print(f"The total graph distance of this graph is {graph_dist}")
 
             # If not enough entanglements were made with the intiial configuration, end the attempt
             # About half of the entanglements should be from the initial placement.
@@ -652,8 +648,7 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             # of calculating these for any given graph with any number of nodes. It will probably
             # require reformulating a lot of this in terms of swaps/entangle, which will increase
             # as the number of nodes increases
-            #if len(entangles_to_do) <= 0.5 * num_entangles and graph_dist < 1.5 * num_entangles:
-            if True:
+            if len(entangles_to_do) <= 0.5 * num_entangles and graph_dist < 1.5 * num_entangles:
 
                 #print(f"A good graph was found after {attempts} attempts")
                 attempts_array.append(attempts)
@@ -674,10 +669,6 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
                 
             else:
                 attempts += 1
-
-        end_time = time.perf_counter()
-
-        print(f"It took {round(((end_time - start_time) * 1000), 2)}ms to produce a good graph")
 
         # Keeps track of how many times the graph has been tested
         graph_iter_num = 0

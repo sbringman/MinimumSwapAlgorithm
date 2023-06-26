@@ -2,21 +2,20 @@
 
 This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 
-## Outline of the Algorithm
-
 ## Definitions: 
 * QUBO graph - A graph where the nodes are the variables in the QUBO and the edges are the entanglements needed to solve the QUBO.
 * Qubit lattice - The graph depicting the qubits on the quantum computer and the connections between them
 * Qubit tail - A chain of nodes in the QUBO graph starting with a node of degree 1 and continuing along neighboring nodes until it reaches a node of degree greater than 2. That node is not counted as part of the chain.
 * Connecting node - The node where qubit tail attaches to the main QUBO graph
 * Swap Path - The sequence of swaps from the initial mapping to the final position where all qubits that need to be entangled have been entangled
-* Distance function of graph - This is the total sum of the distances on the lattice between each pair of qubits that needs to be entangled. 
+* Distance function of graph - This is the total sum of the distances on the lattice between each pair of qubits that needs to be entangled.
+* Distance function of a qubit - This is the total sum of the distances on the lattice between that qubit and all the other qubits that it needs to be entangled with.
 
 ## Algorithm
 
 ### Preparation:
 1. A path is labelled on the lattice graph forming a spiral out from the center. The first set of qubits will be placed onto the lattice graph along this path.
-2. Find how many entanglements are achieved without moving any of the qubits. If this number is less than half the total number of entanglements, regenerate the graph. Find the total distance function of the graph. If this number is greater than 1.5 * total number of entanglements needed, then regenerate the graph. This metric assumes that at least half of the original entanglements have already been done, and that the remaining entanglements will average about 3 swaps per entanglement. Both of these conditions are based on graphing total number of swaps v. initial entanglements/initial distance function and selecting a cutoff point that retains all the best solutions while removing initial conditions that virtually always give sub optimal solutions.
+2. The shortest path from any node on the lattice to any other node on the lattice is computed. This is saved for reference later, and doesn't change when the qubits are placed.
 
 ### Placement
 1. Place a random qubit from the QUBO graph that is not part of a qubit tail onto the first node in the path.
@@ -26,14 +25,14 @@ This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 
 ### Check Graph
 1. Do all the entanglements that are possible just from the initial state of the graph.
-2. If the number of entanglements left is more than half the total entanglements, then scrap the graph and start again. Continue to generate graphs until you get a graph that can do at least half the entanglements in the initial mapping. This process is useful because the most successful swap paths always start with a high number of initial swaps.
-3. If the graph has a high enough initial entanglement count, then make a copy of the graph and proceed.
+2. Pick two random qubits on the graph. If it would lower the distance function of the graph to swap them, do so. Continue to do this until there 50 qubit pairs in a row are checked that would not lower the distance function of the graph if swapped. The value of 50 was picked by experimenting with various numbers and choosing the one that lowered the average amount of bad graphs generated before a useful graph was found without increasing the time the total program took to run.
+3. Find how many entanglements are achieved without moving any of the qubits. If this number is less than half the total number of entanglements, regenerate the graph. Find the total distance function of the graph. If this number is greater than 1.5 * total number of entanglements needed, then regenerate the graph. This metric assumes that at least half of the original entanglements have already been done, and that the remaining entanglements will average about 3 swaps per entanglement. Both of these conditions are based on graphing total number of swaps v. initial entanglements/initial distance function and selecting a cutoff point that retains all the best solutions while removing initial conditions that virtually always give sub optimal solutions.
 
 ### Swapping
 1. Make a list of all the entanglments that need to be done, keeping track of which entanglements have the shortest path between qubits.
-2. Randomly choose a swap from the list of swaps that have the hortest path length
-3. Perform the swaps and entangle
-4. Repeat steps 1 - 3
+2. Randomly choose a swap from the list of swaps that have the shortest path length. A path between the two qubits is found using the astar function in the networkx package.
+3. The distance function of each qubit is evaluated before and after the first swap it would make towards the other one. The qubit with the smallest change in its distance function is moved, with ties going to the secodn qubit.
+4. Continue evaluating the distance function for each qubit, swapping the one with the smallest change, until the two qubits are neighbors on the lattice and can be entangled.
 
 ### Repeat
  1. Once a list of swaps has been made that will entangle every qubit that needs to be entangled, record the number of swaps it took.
