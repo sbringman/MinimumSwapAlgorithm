@@ -69,7 +69,7 @@ First Window:
 """
 
 # Create the Window
-window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 300))
+window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 330))
 window.refresh()
 window.move_to_center()
 
