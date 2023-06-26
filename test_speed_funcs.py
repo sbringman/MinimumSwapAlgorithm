@@ -143,7 +143,14 @@ def calc_graph_total_distance(QUBO, all_path_lengths, list_of_entangles):
 # Function to calculate the total distance from a qubit to all of the qubits it
 # needs to entangle with
 # All positions are positions on the lattice
-def calc_distance_change(all_path_lengths, list_of_entangles, qubit, start_pos, end_pos, QUBO_Graph):
+def calc_distance_change(all_path_lengths, list_of_entangles, qubit1, qubit2, end_pos, QUBO_Graph):
+
+    start_pos = QUBO_Graph.nodes[qubit1]['embedded']
+
+    if qubit2 != -1:
+        do_extra = True
+    else:
+        do_extra = False
 
     # This calculation has the problem that it doesn't switch the qubits before testing the distances
     # In order to remedy this oversight, if moving the qubit would generate a distance of 0 from it's
@@ -159,7 +166,7 @@ def calc_distance_change(all_path_lengths, list_of_entangles, qubit, start_pos, 
 
     # Find all the entangles left to do for that qubit
     for entangle in list_of_entangles:
-        if entangle[0] == qubit:
+        if entangle[0] == qubit1:
 
             embed_node = QUBO_Graph.nodes[entangle[1]]['embedded']
 
@@ -170,7 +177,7 @@ def calc_distance_change(all_path_lengths, list_of_entangles, qubit, start_pos, 
             else:
                 dist_at_end += all_path_lengths[end_pos][embed_node]
 
-        elif entangle[1] == qubit:
+        elif entangle[1] == qubit1:
 
             embed_node = QUBO_Graph.nodes[entangle[0]]['embedded']
 
@@ -180,6 +187,30 @@ def calc_distance_change(all_path_lengths, list_of_entangles, qubit, start_pos, 
                 dist_at_end += path_length
             else:
                 dist_at_end += all_path_lengths[end_pos][embed_node]
+        
+        # This half keeps track of the distance change from the second qubit
+        # The start and end nodes are swapped for this
+        if do_extra and entangle[0] == qubit2:
+
+            embed_node = QUBO_Graph.nodes[entangle[1]]['embedded']
+
+            dist_at_start += all_path_lengths[end_pos][embed_node]
+
+            if all_path_lengths[start_pos][embed_node] == 0:
+                dist_at_end += path_length
+            else:
+                dist_at_end += all_path_lengths[start_pos][embed_node]
+
+        elif do_extra and entangle[1] == qubit2:
+
+            embed_node = QUBO_Graph.nodes[entangle[0]]['embedded']
+
+            dist_at_start += all_path_lengths[end_pos][embed_node]
+
+            if all_path_lengths[start_pos][embed_node] == 0:
+                dist_at_end += path_length
+            else:
+                dist_at_end += all_path_lengths[start_pos][embed_node]
 
     return dist_at_end - dist_at_start
 
@@ -379,13 +410,12 @@ def distance_adjustments(lattice_Graph, QUBO_Graph, all_path_lengths):
         rand_qubit2 = random.choices(nodes, k=1)[0]
         qubit_embed2 = QUBO_Graph.nodes[rand_qubit2]['embedded']
 
-        dist1 = calc_distance_change(all_path_lengths, list_of_entangles, rand_qubit1, qubit_embed1, qubit_embed2, QUBO_Graph)
-        dist2 = calc_distance_change(all_path_lengths, list_of_entangles, rand_qubit2, qubit_embed2, qubit_embed1, QUBO_Graph)
+        dist_change = calc_distance_change(all_path_lengths, list_of_entangles, rand_qubit1,  rand_qubit2, qubit_embed2, QUBO_Graph)
 
-        if dist1 + dist2 < 0:
+        if dist_change < 0:
 
             #print(f"The qubits {rand_qubit1} and {rand_qubit2} will be swapped, "
-            #        f"because the distance change is {dist1+dist2}")
+            #        f"because the distance change is {dist_change}")
 
             swap_qubits(lattice_Graph, QUBO_Graph, qubit_embed1, qubit_embed2)
 
@@ -500,8 +530,8 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles, all_path_len
     # This is the total distance from the qubit to all of its entangles
     # It compares that total distance while in its original spot with the total
     # distance from the spot it will be moving to, returning the difference
-    dist_change_l = calc_distance_change(all_path_lengths, list_of_entangles, left_qubit, path[0], path[1], QUBO_Graph)
-    dist_change_r = calc_distance_change(all_path_lengths, list_of_entangles, right_qubit, path[-1], path[-2], QUBO_Graph)
+    dist_change_l = calc_distance_change(all_path_lengths, list_of_entangles, left_qubit, lattice_Graph.nodes[path[1]]['qubit'], path[1], QUBO_Graph)
+    dist_change_r = calc_distance_change(all_path_lengths, list_of_entangles, right_qubit, lattice_Graph.nodes[path[-2]]['qubit'], path[-2], QUBO_Graph)
 
     #print(f"Initial distance change left is {dist_change_l}")
     #print(f"Initial distance change right is {dist_change_r}")
@@ -526,7 +556,7 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles, all_path_len
             # We only need to advance if we are not done swapping
             if swaps < len(path) - 2:
                 marker_l += 1
-                dist_change_l = calc_distance_change(all_path_lengths, list_of_entangles, left_qubit, path[marker_l-1], path[marker_l], QUBO_Graph)
+                dist_change_l = calc_distance_change(all_path_lengths, list_of_entangles, left_qubit, lattice_Graph.nodes[path[marker_l+1]]['qubit'], path[marker_l+1], QUBO_Graph)
 
                 #print(f"The new left distance change is {dist_change_l}")
 
@@ -541,7 +571,7 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles, all_path_len
 
             if swaps < len(path) - 2:
                 marker_r -= 1
-                dist_change_r = calc_distance_change(all_path_lengths, list_of_entangles, right_qubit, path[marker_r-1], path[marker_r], QUBO_Graph)
+                dist_change_r = calc_distance_change(all_path_lengths, list_of_entangles, right_qubit, lattice_Graph.nodes[path[marker_r-1]]['qubit'], path[marker_r-1], QUBO_Graph)
 
                 #print(f"The new right distance change is {dist_change_r}")
     
