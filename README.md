@@ -31,8 +31,8 @@ This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 ### Swapping
 1. Make a list of all the entanglments that need to be done, keeping track of which entanglements have the shortest path between qubits.
 2. Randomly choose a swap from the list of swaps that have the shortest path length. A path between the two qubits is found using the astar function in the networkx package.
-3. The distance function of each qubit is evaluated before and after the first swap it would make towards the other one. The qubit with the smallest change in its distance function is moved, with ties going to the secodn qubit.
-4. Continue evaluating the distance function for each qubit, swapping the one with the smallest change, until the two qubits are neighbors on the lattice and can be entangled.
+3. The distance function of each qubit is evaluated before and after the first swap it would make towards the other one. The distance function is also calculated for the qubit that it will be swapping with. The swap that lowers the total distance function the most, or raises it the least, is the swap that is made. Ties go to the second qubit, to simplify the code.
+4. Continue evaluating the distance function for each qubit, swapping the one that results in the lowest total distance function, until the two qubits are neighbors on the lattice and can be entangled.
 
 ### Repeat
  1. Once a list of swaps has been made that will entangle every qubit that needs to be entangled, record the number of swaps it took.
