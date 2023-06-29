@@ -10,7 +10,7 @@ import networkx as nx
 import random as rand
 
 
-def add_node_details(graph, width, height):
+def add_node_details_grid(graph, width, height):
 
     # Adds the positional arguments to the nodes, so they can be graphed
     for x in range(width):
@@ -21,6 +21,18 @@ def add_node_details(graph, width, height):
             graph.nodes[(x, y)]["qubit"] = -1
             graph.nodes[(x, y)]["size"] = 50
             graph.nodes[(x, y)]["color"] = 'k'
+
+    return graph
+
+
+def add_node_details_hex(graph):
+
+    # Adds the useful variables to the nodes
+    for node in graph:
+        graph.nodes[node]["qubit"] = -1
+        graph.nodes[node]["size"] = 50
+        graph.nodes[node]["color"] = 'k'
+
 
     return graph
 
