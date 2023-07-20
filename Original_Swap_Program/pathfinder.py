@@ -15,7 +15,7 @@ import time
 
 import gui_functions as gui_func
 import graph_functions as graph_func
-import speed_graph_functions as sgf
+import test_speed_funcs as sgf
 
 """
 This is the code that will run the minimum swap algorithm a sufficient number of times
@@ -58,6 +58,8 @@ layout = [[sg.Text('Welcome to the Minimum Swap Algorithm Interface!', font=titl
         [sg.Text("", size=(40, 1), key='-ERROR-')],
         [sg.Text("You may also load a file below to preconstruct the edges")],
         [sg.FileBrowse(target='file'), sg.Input('None', key='file')],
+        [sg.Text("Or, you can generate a 3-regular graph of n nodes: ")],
+        [sg.Checkbox('3-Regular', default=True, key='-3REG-'), sg.Text("n: "), sg.InputText("30", key='-REGNUM-')],
         [sg.Button("Enter"), sg.Cancel()],
         [sg.Text("")],
         ]
@@ -69,7 +71,7 @@ First Window:
 """
 
 # Create the Window
-window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 300))
+window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 350))
 window.refresh()
 window.move_to_center()
 
@@ -82,26 +84,49 @@ while True:
 
     # If they enter anything, test to see if it is valid
     if event == "Enter":
-        num_nodes = values['-INPUT-']
 
-        try:
-            test = range(int(num_nodes))
+        if values['-3REG-']:
+            num_nodes = int(values['-REGNUM-'])
 
-            if int(num_nodes) > 0:
-                break
-            else:
-                window["-ERROR-"].update("Invalid input, please enter a valid number")
+            try:
+                test = range(num_nodes)
 
-        except:
-            window["-ERROR-"].update("Invalid input, please enter a number")
+                if num_nodes > 0 and num_nodes % 2 == 0:
+                    break
+                elif num_nodes > 0 and num_nodes % 2 == 1:
+                    window["-ERROR-"].update("Invalid input, please enter an even number")
+                else:
+                    window["-ERROR-"].update("Invalid input, please enter a valid number")
+
+            except:
+                window["-ERROR-"].update("Invalid input, please enter a number")
+        
+        else:
+            num_nodes = int(values['-INPUT-'])
+
+            try:
+                test = range(num_nodes)
+
+                if num_nodes > 0:
+                    break
+                else:
+                    window["-ERROR-"].update("Invalid input, please enter a valid number")
+
+            except:
+                window["-ERROR-"].update("Invalid input, please enter a number")
+
+if values['-3REG-']:
+    # Make 3-regular graph
+    QUBO_Graph, num_nodes, num_edges, list_nodes = sgf.make_3reg_graph(num_nodes)
+else:
+    # Make the QUBO graph
+    QUBO_Graph, num_nodes, num_edges, list_nodes = sgf.make_qubo_graph(num_nodes, values["file"])
 
 window.close()
 
 """
 Data Processing the User Input
 """
-
-QUBO_Graph, num_nodes, num_edges, list_nodes = sgf.make_qubo_graph(num_nodes, values["file"])
 
 QUBO_Graph = sgf.find_greens(QUBO_Graph)
 
@@ -129,7 +154,7 @@ info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10,
             [sg.Text("Add an edge between nodes:")],
             [sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE1-"),
                 sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE2-")],
-            [sg.Text("# of Iterations: "), sg.InputText('1', size=(10, 1), key='-NUM_ITER-')],
+            [sg.Text("# of Iterations: "), sg.InputText('12000', size=(10, 1), key='-NUM_ITER-')],
             [sg.Text("", size=(40, 1), key='-ERROR2-')],
             [sg.Text("")],
             ]
@@ -213,15 +238,19 @@ window2.close()
 
 start_time = time.perf_counter()
 
-best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, iterations, graph_distance, ave_swap_list = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations)
-#cProfile.run('best_swap_list, list_of_swap_nums, best_lattice_nodes = graph_func.iterate_through(lattice_Graph, QUBO_Graph, iterations)')
+best_moves_list, best_moves_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, iterations, graph_distance, ave_swap_list = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations)
+#cProfile.run('best_moves_list, list_of_swap_nums, best_lattice_nodes = graph_func.iterate_through(lattice_Graph, QUBO_Graph, iterations)')
 #print(best_lattice_nodes)
 #print(best_qubo_embed)
 # Needs to also print out the original lattice placement
-#print(f"The best path was {best_swap_list}")
+#print(f"The best path was {best_moves_list}")
+print("Best Move List:")
+print(best_moves_list)
+print("\nBest Move Key:")
+print(best_moves_key)
 
 # Clean up calculations
-best_swap = len(best_swap_list)
+best_swap = len([key for key in best_moves_key if key == "s"])
 ave_swaps = round(np.average(np.array(list_of_swap_nums)), 3)
 
 end_time = time.perf_counter()
@@ -253,7 +282,9 @@ run_time_column = [[sg.Text("# of Qubits: "), sg.Text(key='-NUM_VAR2-', size=(10
                 ]
 
 route_column = [[sg.Text("Best Path:", size=(35, 1))],
-                [sg.Text("", key='-ROUTE-', size=(35, 5))],
+                [sg.Text("", key='-ROUTE-', size=(35, 7))],
+                [sg.Text("Best Path Key:", size=(35, 1))],
+                [sg.Text("", key='-ROUTE_KEY-', size=(35, 5))],
             ]
 
 layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height), key='figCanvas2'), sg.Canvas(size=(graph_width, graph_height), key='figCanvas3')],
@@ -271,7 +302,8 @@ window3["-NUM_VAR2-"].update(num_nodes)
 window3["-NUM_EDGES2-"].update(num_edges)
 window3["-AVE_SWAPS-"].update(ave_swaps)
 window3["-BEST_SWAP-"].update(best_swap)
-window3["-ROUTE-"].update(str(best_swap_list))
+window3["-ROUTE-"].update(str(best_moves_list))
+window3["-ROUTE_KEY-"].update(str(best_moves_key))
 window3["-ITER-"].update(iterations)
 window3["-RUN_TIME-"].update(f"{run_time} s")
 window3["-RUN_TIME_TRIAL-"].update(f"{round((run_time / iterations) * 1000, ndigits=3)} ms")
