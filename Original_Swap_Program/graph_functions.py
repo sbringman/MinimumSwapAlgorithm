@@ -11,8 +11,8 @@ from pandas import read_csv
 import random
 
 # Paths to the HH lattice data files
-HH_nodes_filepath = "./HH_Nodes.txt"
-HH_edges_filepath = "./HH_Edges.txt"
+HH_nodes_filepath = "./Original_Swap_Program/HH_Nodes.txt"
+HH_edges_filepath = "./Original_Swap_Program/HH_Edges.txt"
 
 # This function takes the number of nodes and the file path as input
 # It then makes a nx graph from the user input
