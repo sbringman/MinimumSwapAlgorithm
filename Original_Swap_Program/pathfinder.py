@@ -58,8 +58,6 @@ layout = [[sg.Text('Welcome to the Minimum Swap Algorithm Interface!', font=titl
         [sg.Text("", size=(40, 1), key='-ERROR-')],
         [sg.Text("You may also load a file below to preconstruct the edges")],
         [sg.FileBrowse(target='file'), sg.Input('None', key='file')],
-        [sg.Text("Or, you can generate a 3-regular graph of n nodes: ")],
-        [sg.Checkbox('3-Regular', default=True, key='-3REG-'), sg.Text("n: "), sg.InputText("20", key='-REGNUM-')],
         [sg.Button("Enter"), sg.Cancel()],
         [sg.Text("")],
         ]
@@ -154,7 +152,7 @@ info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10,
             [sg.Text("Add an edge between nodes:")],
             [sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE1-"),
                 sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE2-")],
-            [sg.Text("# of Iterations: "), sg.InputText('1', size=(10, 1), key='-NUM_ITER-')],
+            [sg.Text("# of Iterations: "), sg.InputText('12000', size=(10, 1), key='-NUM_ITER-')],
             [sg.Text("", size=(40, 1), key='-ERROR2-')],
             [sg.Text("")],
             ]

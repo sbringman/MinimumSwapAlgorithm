@@ -28,15 +28,19 @@ This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 2. Pick two random qubits on the graph. If it would lower the distance function of the graph to swap them, do so. Continue to do this until there 50 qubit pairs in a row are checked that would not lower the distance function of the graph if swapped. The value of 50 was picked by experimenting with various numbers and choosing the one that lowered the average amount of bad graphs generated before a useful graph was found without increasing the time the total program took to run.
 3. Find how many entanglements are achieved without moving any of the qubits. If this number is less than half the total number of entanglements, regenerate the graph. Find the total distance function of the graph. If this number is greater than 1.5 * total number of entanglements needed, then regenerate the graph. This metric assumes that at least half of the original entanglements have already been done, and that the remaining entanglements will average about 3 swaps per entanglement. Both of these conditions are based on graphing total number of swaps v. initial entanglements/initial distance function and selecting a cutoff point that retains all the best solutions while removing initial conditions that virtually always give sub optimal solutions.
 
-### Swapping
+### Entanglement Step
+1. Each every edge of the lattice. If the qubits connected by that edge are on the list of qubits that need to be entangled, mark that they are entangled. If swapping the two qubits would lower the distance function of the graph, mark them to recheck later.
+2. Once all the possible entanglements have been found, go back through the list of pairs of qubits that would reduce the distance function if swapped. Check again that the qubits are next to each other and if they would still reduce the distance function if swapped. If both of these are true, swap the qubits. This is a free swap that is combined with the entanglement gate.
+
+### Swapping Step
 1. Make a list of all the entanglments that need to be done, keeping track of which entanglements have the shortest path between qubits.
 2. Randomly choose a swap from the list of swaps that have the shortest path length. A path between the two qubits is found using the astar function in the networkx package.
 3. The distance function of each qubit is evaluated before and after the first swap it would make towards the other one. The distance function is also calculated for the qubit that it will be swapping with. The swap that lowers the total distance function the most, or raises it the least, is the swap that is made. Ties go to the second qubit, to simplify the code.
-4. Continue evaluating the distance function for each qubit, swapping the one that results in the lowest total distance function, until the two qubits are neighbors on the lattice and can be entangled.
+4. Continue swapping until the qubits are next to each other.
 
 ### Repeat
- 1. Once a list of swaps has been made that will entangle every qubit that needs to be entangled, record the number of swaps it took.
- 2. Reset the graph back to the way it was before the swapping started. This graph already passed the initial entanglements test, so it has a good chance at getting a low total swap number. Repeat the swapping process 20 times. Because the swap process is randomized, the same starting condition should provide different swap paths, and this graphs are worth investigating.
+ 1. Once the swap has been made, record how many swap gates were used. Repeat the entenglement step, followed by the swapping step, for as long as there are entanglements left to do.
+ 2. When all entanglements have been done, record the total number of swap gates used. Then, reset the graph back to the way it was before the swapping started. This graph already passed the initial entanglements test, so it has a good chance at getting a low total swap number. Repeat the swapping process 20 times. Because the swap process is randomized, the same starting condition should provide different swap paths, and this graphs are worth investigating.
  3. After running the same graph 10 times (less if the total number of iterations is small), repeat from the beginning with a fresh mapping. Continue to run the program until a set number of iterations has been finished
 
 ### Speed Up Notes
