@@ -15,7 +15,7 @@ import time
 
 import gui_functions as gui_func
 import graph_functions as graph_func
-import test_speed_funcs as sgf
+import speed_graph_functions as sgf
 
 """
 This is the code that will run the minimum swap algorithm a sufficient number of times
