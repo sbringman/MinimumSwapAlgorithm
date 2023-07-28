@@ -57,6 +57,27 @@ def make_qubo_graph(num_nodes, filepath):
     return graph, num_nodes, num_edges, list_nodes
 
 
+# This function takes the number of nodes as the input and
+# creates a 3-regular graph with that many nodes
+def make_3reg_graph(num_nodes):
+
+    graph = nx.random_regular_graph(3, num_nodes)
+
+    for node in graph.nodes:
+        graph.nodes[node]['green'] = False
+        graph.nodes[node]['placed'] = False
+        graph.nodes[node]['tail_start'] = False
+        graph.nodes[node]['tail_end'] = False
+        graph.nodes[node]['embedded'] = -1
+    
+
+    list_nodes = list(range(0, num_nodes))
+
+    num_edges = len(graph.edges())
+    
+    return graph, num_nodes, num_edges, list_nodes
+
+
 #This function finds the green nodes
 def find_greens(graph):
 
@@ -461,8 +482,13 @@ def swap_qubits(lattice_Graph, QUBO_Graph, lattice_point1, lattice_point2):
 # This function runs all the entanglements for the current graph
 # May want to have it check all edges in the QUBO graph for edges in the lattice graph instead
 def get_current_entangles(lattice_Graph, QUBO_Graph, list_of_entangles, all_path_lengths):
-    entangles_done = []
-    move_key = []
+
+    # We want to entangle everything on the graph, but then go back through and check to see if 
+    # it should have been swapped instead
+    recheck = [] # List of qubits that should get in a free swap
+
+    # Keeps track of entanglements done
+    move_dict = {}
 
     #print(f"Here is the list of qubits that need to be entangled: {list_of_entangles}")
 
@@ -479,37 +505,71 @@ def get_current_entangles(lattice_Graph, QUBO_Graph, list_of_entangles, all_path
             pass
 
         elif edge1 in list_of_entangles:
-            #print(f"{edge1} was entangled")
             
             list_of_entangles.remove(edge1)
-            entangles_done.extend(edge1)
+            #print(f"{edge1[0]}, {edge1[1]} were entangled")
 
+            # Check if worth swapping
             dis_change = calc_distance_change(all_path_lengths, list_of_entangles, edge1[0], edge1[1], node_2, QUBO_Graph)
 
             if dis_change < 0:
-                move_key.extend("f")
-                swap_qubits(lattice_Graph, QUBO_Graph, node_1, node_2)
-            else:
-                move_key.extend("e")
+                recheck.append(edge1)
+
+            #print(f"{edge1} was entangled")
+            move_dict.update({edge1: "e"})
+            #print(f" - {edge1} was added to move_dict - 1")
 
         elif edge2 in list_of_entangles:
-            #print(f"{edge2} was entangled")
             
             list_of_entangles.remove(edge2)
-            entangles_done.extend(edge2)
+            #print(f"{edge1[0]}, {edge1[1]} were entangled")
 
+            # Check if worth swapping
             dis_change = calc_distance_change(all_path_lengths, list_of_entangles, edge2[0], edge2[1], node_1, QUBO_Graph)
 
             if dis_change < 0:
-                move_key.extend("f")
-                swap_qubits(lattice_Graph, QUBO_Graph, node_1, node_2)
-            else:
-                move_key.extend("e")
-        
+                recheck.append(edge2)
+
+            # Sometimes, the code doesn't realize that swapping a qubit with a gate will result in a free
+            # swap right after, so I have to check for that 
+
+            #print(f"{edge2} was entangled")
+            move_dict.update({edge2: "e"})
+            #print(f" - {edge2} was added to move_dict - 2")
+
         else:
             #print(f"{edge1} and {edge2} were not in the list of entanglements")
             pass
+
+    #print(f"Recheck: {recheck}")
+    #print(f"Move dict {move_dict}")
+
+    # Now go through a second pass and see which ones in here can be given a free swap
+    for q1, q2 in recheck:
+        
+        n1, n2 = QUBO_Graph.nodes[q1]['embedded'], QUBO_Graph.nodes[q2]['embedded']
+        #print(f"Currently rechecking {q1, q2}, at position {n1, n2}")
+
+        # Ensure that the two qubits are still next to each other
+        if n1 in nx.neighbors(lattice_Graph, n2):
+
+            #print(f"{q1}, {q2} got free swapped")
+
+            move_dict[(q1, q2)] = "f"
+            #print(f"{(q1, q2)} was updated in move_dict")
+
+            swap_qubits(lattice_Graph, QUBO_Graph, n1, n2)
     
+    # Finally, just have to convert the dictionary back to a list
+    entangles_done = [key for key, value in move_dict.items() if value == "e"]
+    move_key = [value for key, value in move_dict.items() if value == "e"]
+
+    entangles_done.extend([key for key, value in move_dict.items() if value == "f"])
+    move_key.extend([value for key, value in move_dict.items() if value == "f"])
+    
+    #print(f"Entangles done: {entangles_done}")
+    #print(f"Move key: {move_key}")
+
     return lattice_Graph, QUBO_Graph, list_of_entangles, entangles_done, move_key
 
 
@@ -567,8 +627,8 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles, all_path_len
             # This works because it is only swapping the qubits on top of the lattice points,
             # so it is only changing the variables attached to each lattice point
             # The lattice points remain unchanged in this
-            swap_qubits(lattice_Graph, QUBO_Graph, path[marker_l], path[marker_l+1])
             swap_list.append((lattice_Graph.nodes[path[marker_l]]['qubit'], lattice_Graph.nodes[path[marker_l+1]]['qubit']))
+            swap_qubits(lattice_Graph, QUBO_Graph, path[marker_l], path[marker_l+1])
             swaps += 1
 
             #print(f"The left qubit {lattice_Graph.nodes[path[marker_l]]['qubit']} will be swapped with {lattice_Graph.nodes[path[marker_l+1]]['qubit']}")
@@ -582,9 +642,8 @@ def perform_next_swap(lattice_Graph, QUBO_Graph, list_of_entangles, all_path_len
 
         # Swap the right qubit over, or it doesn't matter because the two are tied
         else:
-
-            swap_qubits(lattice_Graph, QUBO_Graph, path[marker_r], path[marker_r-1])
             swap_list.append((lattice_Graph.nodes[path[marker_r]]['qubit'], lattice_Graph.nodes[path[marker_r-1]]['qubit']))
+            swap_qubits(lattice_Graph, QUBO_Graph, path[marker_r], path[marker_r-1])
             swaps += 1
 
             #print(f"The right qubit {lattice_Graph.nodes[path[marker_r]]['qubit']} will be swapped with {lattice_Graph.nodes[path[marker_r-1]]['qubit']}")
@@ -643,7 +702,7 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
     # Then, get the variables for the process
     total_iter_num = 0
     list_of_swap_nums = []
-    best_swap_list = []
+    best_move_list = []
     best_swap_num = 10000000
 
     # Variables for testing things
@@ -672,8 +731,6 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             lattice_Graph = copy_graph(original_lattice, lattice_Graph)
             solved = False
             swap_num = 0
-            move_list = []
-            move_list_key = []
 
             # Map to the lattice
             lattice_Graph, QUBO_Graph = place_initial_qubits(lattice_Graph, QUBO_Graph)
@@ -687,10 +744,16 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             #graph_dist = calc_graph_total_distance(QUBO_Graph, all_path_lengths, entangles_to_do)
             #print(f"The graph distance after adjustments is {graph_dist}")
 
+            # We have to save this for when it finds the best path
+            # However, the only important parts of the graph that we need are the nodes
+            start_lattice_nodes = copy.copy([value for node, value in lattice_Graph.nodes(data="qubit")])
+            start_qubo_embed = copy.copy([value for node, value in QUBO_Graph.nodes(data="embedded")])
+            #print(start_lattice_nodes)
+
             # Do initial entangling
             lattice_Graph, QUBO_Graph, entangles_to_do, entangles_done, move_key = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do, all_path_lengths)
-            move_list.append(entangles_done)
-            move_list_key.append(move_key)
+            original_move_list = entangles_done
+            original_move_list_key = move_key
 
             graph_dist = calc_graph_total_distance(QUBO_Graph, all_path_lengths, entangles_to_do)
             #print(f"The total graph distance of this graph is {graph_dist}")
@@ -709,11 +772,6 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
 
                 #init_entangles_value = num_entangles - len(entangles_to_do)
                 graph_distance_list.append(graph_dist)
-                
-                # We have to save this for when it finds the best path
-                # However, the only important parts of the graph that we need are the nodes
-                start_lattice_nodes = copy.copy([value for node, value in lattice_Graph.nodes(data="qubit")])
-                start_qubo_embed = copy.copy([value for node, value in QUBO_Graph.nodes(data="embedded")])
 
                 template_QUBO = copy.deepcopy(QUBO_Graph)
                 template_lattice = copy.deepcopy(lattice_Graph)
@@ -740,8 +798,8 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             lattice_Graph = copy_graph(template_lattice, lattice_Graph)
             solved = False
             swap_num = 0
-            move_list = []
-            move_list_key = []
+            move_list = copy.copy(original_move_list)
+            move_list_key = copy.copy(original_move_list_key)
 
             # Mark down the initial entangles here, because it was successful
             #init_entangles.append(init_entangles_value)
@@ -752,12 +810,13 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
                 lattice_Graph, new_swaps, new_swap_list, entangles_to_do = perform_next_swap(lattice_Graph, QUBO_Graph, entangles_to_do, all_path_lengths)
                 swap_num += new_swaps
                 move_list += new_swap_list
-                move_list.append("s" for swap in new_swap_list)
+                move_list_key.extend(["s" for swap in new_swap_list])
 
                 # Get the current entanglements
                 lattice_Graph, QUBO_Graph, entangles_to_do, entangles_done, move_key = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do, all_path_lengths)
-                move_list.append(entangles_done)
-                move_list_key.append(move_key)
+                #print(entangles_done)
+                move_list.extend(entangles_done)
+                move_list_key.extend(move_key)
 
                 # If we have already gone past the best swap num, immediately stop
                 if swap_num >= best_swap_num:
@@ -776,16 +835,21 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             #print(f"\nThis trial took {swap_num} moves to solve")
  
             if swap_num < best_swap_num:
-                best_swap_num = swap_num
-                best_swap_list = move_list
-                best_lattice_nodes = copy.copy(start_lattice_nodes)
-                best_qubo_embed = copy.copy(start_qubo_embed)
+                best_swap_num = copy.deepcopy(swap_num)
+                best_move_list = copy.deepcopy(move_list)
+                best_move_key = copy.deepcopy(move_list_key)
+                best_lattice_nodes = copy.deepcopy(start_lattice_nodes)
+                best_qubo_embed = copy.deepcopy(start_qubo_embed)
                 #print("\n\n\n")
-                #print(best_lattice_nodes)
+                #print("Best Move List: \n")
+                #print(best_move_list)
+                #print("\n\nBest Move Key: \n")
+                #print(best_move_key)
 
-                print(f"A new best swap path was found, with a length of {swap_num} on iteration {total_iter_num + graph_iter_num}")
+                print(f"A new best path was found, with {swap_num} swaps on iteration {total_iter_num + graph_iter_num}")
 
             graph_iter_num += 1
+            #print(f"The sequence {move_list} with key {move_list_key} has {swap_num} swaps")
         
         total_iter_num += num_trials
 
@@ -795,4 +859,4 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             #print(f"\tThe average number of swap to solve this graph is {ave_swaps}")
     
     print(f"The average number of bad graphs that were generated is {np.average(np.array(attempts_array)) - 1}")
-    return best_swap_list, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, total_iter_num, graph_distance_list, ave_swap_list
+    return best_move_list, best_move_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, total_iter_num, graph_distance_list, ave_swap_list

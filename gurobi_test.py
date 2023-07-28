@@ -21,7 +21,7 @@ start_time = time.time()
 path = "test_circuits/3_17_13.qasm"
 qc = qiskit.QuantumCircuit.from_qasm_file(path)
 
-n = 8
+n = 6
 
 n_regular_graph = nx.random_regular_graph(3, n)
 gates = n_regular_graph.edges()
@@ -125,7 +125,7 @@ max_qubit2 = max(qubit2 for qubit1, qubit2 in gates)
 num_qubits = max(max_qubit1, max_qubit2) + 1
 
 time_steps = round(len(gates) * 0.5)
-time_steps = 4
+time_steps = 14
 # Create lattice
 lattice_width ,lattice_height = 2, 2
 
@@ -223,8 +223,10 @@ while True:
 
     #print(f"Number of constraint 4s: {len(gates)}")
 
-    # Add constraint 5 - A qubit can either not move, be swapped with a neighbor, 
+    
+    # Add constraint 5a - A qubit can either not move, be swapped with a neighbor, 
     # or have a gate with its neighbor
+    # ALLOWS FREE SWAPS
     for qubit in range(num_qubits):
         for node in range(num_nodes):
             for step in range(time_steps - 1):
@@ -242,9 +244,29 @@ while True:
                         for neighbor_node in range(num_nodes) if (min(node, neighbor_node), max(node, neighbor_node)) in edges
                         )
                 )
+    
+
+    """
+    # Add constraint 5b - A qubit can either not move, be swapped with a neighbor
+    # DOES NOT ALLOW FREE SWAPS
+    for qubit in range(num_qubits):
+        for node in range(num_nodes):
+            for step in range(time_steps - 1):
+                m.addConstr(
+                    Y_array[qubit][node][step + 1] <=
+                    # Didn't move
+                    Y_array[qubit][node][step] +
+                    # Did move
+                    gp.quicksum( 
+                        (Y_array[qubit][neighbor_node][step] *
+                        # Swapped
+                        (SWAP_array[edges.index((min(node, neighbor_node), max(node, neighbor_node)))][step + 1]))
+                        for neighbor_node in range(num_nodes) if (min(node, neighbor_node), max(node, neighbor_node)) in edges
+                        )
+                )
+    """    
 
     #print(f"Number of constraint 5s: {num_qubits * num_nodes * (time_steps - 1)}")
-
 
     # Add constraint 6 - each qubit can only be in one gate per time step
     for step in range(time_steps):

@@ -90,6 +90,8 @@ def makeLatticePlot(graph):
     # Draw HH lattice
     nx.draw_networkx(graph, pos=graph.nodes.data('pos'), node_color=color_array, node_size=size_array, labels=labels)
 
+    plt.savefig("Fig", dpi=2400)
+
     return fig
 
 def makeSwapHist(swaps):
