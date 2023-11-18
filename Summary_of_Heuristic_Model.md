@@ -5,7 +5,8 @@ This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 ## Definitions: 
 * QUBO graph - A graph where the nodes are the variables in the QUBO and the edges are the entanglements needed to solve the QUBO.
 * Qubit lattice - The graph depicting the qubits on the quantum computer and the connections between them
-* Qubit tail - A chain of nodes in the QUBO graph starting with a node of degree 1 and continuing along neighboring nodes until it reaches a node of degree greater than 2. That node is not counted as part of the chain.
+* Qubit tail - A chain of nodes in the QUBO graph starting with a node of degree 1 and continuing along neighboring nodes until it reaches a node of degree greater than 2. That node with a degree greater than 2 is not counted as part of the chain.
+* Nontail qubit - A qubit that is not part of a qubit tail.
 * Connecting node - The node where qubit tail attaches to the main QUBO graph
 * Swap Path - The sequence of swaps from the initial mapping to the final position where all qubits that need to be entangled have been entangled
 * Distance function of graph - This is the total sum of the distances on the lattice between each pair of qubits that needs to be entangled.
@@ -18,9 +19,9 @@ This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 2. The shortest path from any node on the lattice to any other node on the lattice is computed. This is saved for reference later, and doesn't change when the qubits are placed.
 
 ### Placement
-1. Place a random qubit from the QUBO graph that is not part of a qubit tail onto the first node in the path.
-2. Get a list of the unplaced neighbors of the last qubit placed. Place a random qubit from this list and place it onto the next node in the path. If there are no unplaced neighbors, place a random unplaced qubit from the QUBO graph onto the lattice on the next node of the path.
-3. Repeat step 3 until all the qubits that are not part of a qubit tail are placed.
+1. Place a random qubit from the QUBO graph that is not part of a qubit tail onto the first node in the spiral path.
+2. Obtain a list of the unplaced, nontail neighbors of the last qubit placed (qubit A). Select a random qubit from this list (qubit B) and place it onto the next node in the path. The other unplaced neighbors are not used at this point, only qubit B. If there are no unplaced neighbors, place a random, unplaced, nontail qubit from the QUBO graph onto the lattice on the next node of the spiral path.
+3. Repeat step 2 until all the qubits that are not part of a qubit tail are placed. When repeating, the old qubit B becomes the new qubit A, and the new qubit B is selcted from the neighbors of the new qubit A.
 4. Pick one qubit tail at random. Attempt to place the tail onto the lattice as a neighbor of its connecting node. If that is not possible, place the qubit tail as close as possible to the connecting node. Repeat this for all qubit tails
 
 ### Check Graph
