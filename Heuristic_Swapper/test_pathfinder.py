@@ -14,7 +14,6 @@ import time
 #import cProfile
 
 import gui_functions as gui_func
-import graph_functions as graph_func
 import test_speed_funcs as sgf
 
 """
@@ -22,12 +21,9 @@ This is the code that will run the minimum swap algorithm a sufficient number of
  to find the best path
 
  Speed Ups:
-    We need to leverage the fact that I can store the distance between every pair of points
-        on the lattice easily. That won't change between QUBOs. Can I use this to pick out the
-        best paths through the lattice?
     Right now, the distance adjustments function doesn't change the time required for the total run.
         It actually increases it a little I think, at least for a strike count of 50. However,
-        it does recude the number of bad graphs per good graph from 26 to 10, which is a success.
+        it does reduce the number of bad graphs per good graph from 26 to 10, which is a success.
         The next step will be to have it get better at reducing the distance. One way to do this
         might be to have it be able to move qubits to a different spot, instead of just swapping them.
 """
@@ -71,7 +67,7 @@ First Window:
 """
 
 # Create the Window
-window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 350))
+window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 450))
 window.refresh()
 window.move_to_center()
 
@@ -203,7 +199,7 @@ while True:
             window2["-NUM_EDGES-"].update(num_edges)
 
     if event == "-UPDATE-":
-        #QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+        QUBO_Graph = sgf.color_graph(QUBO_Graph)
 
         gui_func.delete_figure_agg(figure_agg2)
         figure2 = gui_func.makePlot(QUBO_Graph)
@@ -264,8 +260,8 @@ QUBO_Graph = sgf.reconstruct_qubo(best_qubo_embed, QUBO_Graph)
 #print(best_lattice.nodes(data=True))
 
 # Add in the graph colors
-QUBO_Graph = graph_func.color_graph(QUBO_Graph)
-lattice_Graph = graph_func.color_lattice(lattice_Graph, QUBO_Graph)
+QUBO_Graph = sgf.color_graph(QUBO_Graph)
+lattice_Graph = sgf.color_lattice(lattice_Graph, QUBO_Graph)
 
 """
 Now, display all the final information
@@ -294,7 +290,7 @@ layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height),
         ]
 
 # Create the second window
-window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1200, 780), margins=(0, 0))
+window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1400, 800), margins=(0, 0))
 window3.move_to_center()
 
 # Update the third window

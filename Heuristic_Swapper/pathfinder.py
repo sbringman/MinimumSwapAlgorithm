@@ -14,7 +14,6 @@ import time
 #import cProfile
 
 import gui_functions as gui_func
-import graph_functions as graph_func
 import speed_graph_functions as sgf
 
 """
@@ -22,20 +21,17 @@ This is the code that will run the minimum swap algorithm a sufficient number of
  to find the best path
 
  Speed Ups:
-    We need to leverage the fact that I can store the distance between every pair of points
-        on the lattice easily. That won't change between QUBOs. Can I use this to pick out the
-        best paths through the lattice?
     Right now, the distance adjustments function doesn't change the time required for the total run.
         It actually increases it a little I think, at least for a strike count of 50. However,
-        it does recude the number of bad graphs per good graph from 26 to 10, which is a success.
+        it does reduce the number of bad graphs per good graph from 26 to 10, which is a success.
         The next step will be to have it get better at reducing the distance. One way to do this
         might be to have it be able to move qubits to a different spot, instead of just swapping them.
 """
 
 # Sets the font options
-font = ("Helvetica", 17)
+font = ("Helvetica", 14)
 sg.set_options(font=font)
-title_font = 'Courier 20'
+title_font = 'Courier 18'
 
 # Creates a dummy window to try and standardize window sizes
 # across different editors and computers
@@ -56,10 +52,12 @@ sg.theme('DarkTeal7')
 layout = [[sg.Text('Welcome to the Minimum Swap Algorithm Interface!', font=title_font, size=(45, 3))],
         [sg.Text('How many variables in your QUBO?', size=(28, 1)), sg.InputText('8', key='-INPUT-')],
         [sg.Text("", size=(40, 1), key='-ERROR-')],
-        [sg.Text("You may also load a file below to preconstruct the edges")],
+        [sg.Text("You may load a file below to preconstruct the edges")],
         [sg.FileBrowse(target='file'), sg.Input('None', key='file')],
         [sg.Text("Or, you can generate a 3-regular graph of n nodes: ")],
-        [sg.Checkbox('3-Regular', default=True, key='-3REG-'), sg.Text("n: "), sg.InputText("20", key='-REGNUM-')],
+        [sg.Checkbox('3-Regular', default=True, key='-3REG-'), sg.Text("n: "), sg.InputText("8", key='-REGNUM-')],
+        [sg.Text("Choose a lattice: ", size=(15, 1)), sg.Combo(["Heavy Hex", "Hex"], default_value="Heavy Hex", key="-LATTICE-")],
+        [sg.Text("")],
         [sg.Button("Enter"), sg.Cancel()],
         [sg.Text("")],
         ]
@@ -71,7 +69,7 @@ First Window:
 """
 
 # Create the Window
-window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 350))
+window = sg.Window('Min Swap Program', layout, finalize=True, size=(650, 430))
 window.refresh()
 window.move_to_center()
 
@@ -96,7 +94,7 @@ while True:
                 elif num_nodes > 0 and num_nodes % 2 == 1:
                     window["-ERROR-"].update("Invalid input, please enter an even number")
                 else:
-                    window["-ERROR-"].update("Invalid input, please enter a valid number")
+                    window["-ERROR-"].update("Invalid input, please enter a valid even number")
 
             except:
                 window["-ERROR-"].update("Invalid input, please enter a number")
@@ -122,6 +120,13 @@ else:
     # Make the QUBO graph
     QUBO_Graph, num_nodes, num_edges, list_nodes = sgf.make_qubo_graph(num_nodes, values["file"])
 
+if values["-LATTICE-"] == "Heavy Hex":
+    lattice_geo = "Heavy Hex"
+elif values["-LATTICE-"] == "Hex":
+    lattice_geo = "Hex"
+else:
+    lattice_geo = "Hex"
+
 window.close()
 
 """
@@ -137,7 +142,7 @@ QUBO_Graph = sgf.find_greens(QUBO_Graph)
 # tail_end: whether it ends an end tail
 # embedded: the number of the node on the lattice it is embedded at
 
-lattice_Graph = sgf.import_lattice()
+lattice_Graph = sgf.import_lattice(lattice_geo)
 
 # Graph info
 # qubit: the number of the node of the QUBO graph that has been
@@ -154,7 +159,7 @@ info_column = [[sg.Text("Number of Nodes: "), sg.Text(key='-NUM_VAR-', size=(10,
             [sg.Text("Add an edge between nodes:")],
             [sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE1-"),
                 sg.Text("", size=(3, 1)), sg.Combo(list_nodes, default_value=0, key="-NODE2-")],
-            [sg.Text("# of Iterations: "), sg.InputText('1', size=(10, 1), key='-NUM_ITER-')],
+            [sg.Text("# of Iterations: "), sg.InputText('10000', size=(10, 1), key='-NUM_ITER-')],
             [sg.Text("", size=(40, 1), key='-ERROR2-')],
             [sg.Text("")],
             ]
@@ -203,7 +208,7 @@ while True:
             window2["-NUM_EDGES-"].update(num_edges)
 
     if event == "-UPDATE-":
-        #QUBO_Graph = graph_func.color_graph(QUBO_Graph)
+        QUBO_Graph = sgf.color_graph(QUBO_Graph)
 
         gui_func.delete_figure_agg(figure_agg2)
         figure2 = gui_func.makePlot(QUBO_Graph)
@@ -238,7 +243,7 @@ window2.close()
 
 start_time = time.perf_counter()
 
-best_moves_list, best_moves_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, iterations, graph_distance, ave_swap_list = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations)
+best_moves_list, best_moves_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, iterations, graph_distance, init_entangles, ave_swap_list = sgf.iterate_through(lattice_Graph, QUBO_Graph, iterations, lattice_geo)
 #cProfile.run('best_moves_list, list_of_swap_nums, best_lattice_nodes = graph_func.iterate_through(lattice_Graph, QUBO_Graph, iterations)')
 #print(best_lattice_nodes)
 #print(best_qubo_embed)
@@ -264,8 +269,8 @@ QUBO_Graph = sgf.reconstruct_qubo(best_qubo_embed, QUBO_Graph)
 #print(best_lattice.nodes(data=True))
 
 # Add in the graph colors
-QUBO_Graph = graph_func.color_graph(QUBO_Graph)
-lattice_Graph = graph_func.color_lattice(lattice_Graph, QUBO_Graph)
+QUBO_Graph = sgf.color_graph(QUBO_Graph)
+lattice_Graph = sgf.color_lattice(lattice_Graph, QUBO_Graph, lattice_geo)
 
 """
 Now, display all the final information
@@ -294,7 +299,7 @@ layout3 = [[sg.Col(run_time_column), sg.Canvas(size=(graph_width, graph_height),
         ]
 
 # Create the second window
-window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1200, 780), margins=(0, 0))
+window3 = sg.Window('Min Swap Program', layout3, finalize=True, size=(1400, 800), margins=(0, 0))
 window3.move_to_center()
 
 # Update the third window
@@ -321,8 +326,8 @@ figure_hist = gui_func.makeSwapHist(list_of_swap_nums)
 figure_agg_hist = gui_func.draw_figure(window3['figCanvas4'].TKCanvas, figure_hist)
 
 # Draw the histogram plot to the window
-#extra_fig = gui_func.graph_distance_v_ave_swaps(init_entangles, swap_num)
-extra_fig = gui_func.graph_distance_v_ave_swaps(graph_distance, ave_swap_list)
+extra_fig = gui_func.init_entangles_v_swap_num(init_entangles, ave_swap_list)
+#extra_fig = gui_func.graph_distance_v_ave_swaps(graph_distance, ave_swap_list)
 figure_agg_hist = gui_func.draw_figure(window3['figCanvas5'].TKCanvas, extra_fig)
 
 window3.refresh()

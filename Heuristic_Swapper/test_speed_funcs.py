@@ -18,8 +18,8 @@ Functions to Create the Graphs
 """
 
 # Paths to the HH lattice data files
-HH_nodes_filepath = "./Original_Swap_Program/HH_Nodes.txt"
-HH_edges_filepath = "./Original_Swap_Program/HH_Edges.txt"
+HH_nodes_filepath = "./Heuristic_Swapper/Heavy_Hex_Nodes.txt"
+HH_edges_filepath = "./Heuristic_Swapper/Heavy_Hex_Edges.txt"
 
 # This function takes the number of nodes and the file path as input
 # It then makes a nx graph from the user input
@@ -76,6 +76,97 @@ def make_3reg_graph(num_nodes):
     num_edges = len(graph.edges())
     
     return graph, num_nodes, num_edges, list_nodes
+
+
+# This takes in a graph and colors it according to my color
+# definitions
+def color_graph(graph):
+    # Green qubits count as placed, because they will be put on in specific
+    # spots at the end
+
+    # First, turn everything yellow
+    for node in graph.nodes:
+        graph.nodes[node]['color'] = 'y'
+
+    # Second, find the end nodes and the end tails
+    for node in graph.nodes:
+        # Blue means unconnected
+        if graph.degree[node] == 0:
+            graph.nodes[node]['color'] = 'b'
+
+        # Upon finding an end node, trace it back until there's a node of degree
+        # greater than 2
+        elif graph.degree[node] == 1:
+            graph.nodes[node]['green'] = True
+            graph.nodes[node]['color'] = 'g'
+            graph.nodes[node]['tail_end'] = True
+
+            cur_node = node
+            prev_nodes = [node]
+            in_tail = True
+            while in_tail:
+
+                # See if the next node in the trail is degree two
+                for next_node in nx.neighbors(graph, cur_node):
+                    #print(f"Node #{cur_node}, Neighbor #{next_node}")
+
+                    # This is node from previously up the chain.
+                    # It's boring and we want to skip it so we go further
+                    # down the end tail chain
+                    if next_node in prev_nodes:
+                        #print(f"Node {next_node} was skipped")
+                        continue
+
+                    elif graph.degree[next_node] == 2:
+                        #print(f"Node {next_node} was colored")
+                        graph.nodes[next_node]['green'] = True
+                        graph.nodes[next_node]['color'] = 'g'
+                        prev_nodes.append(next_node)
+                        cur_node = next_node
+                        break
+
+                    # Else break out of the loop, you've reached the end of the
+                    # tail
+                    else:
+                        #print("End of chain")
+                        graph.nodes[cur_node]['tail_start'] = True
+                        in_tail = False
+
+    # Third, color the max degree nodes red
+    max_degree = max(graph.degree, key=lambda x: x[1])[1]
+
+    # If the max is less than 3, it doesn't matter because the entanglement
+    # is a chain
+    max_degree = max(max_degree, 3)
+
+    # Checks if it is the node with the max degree
+    for node in graph.nodes:
+
+        if graph.degree[node] == max_degree:
+            graph.nodes[node]['color'] = 'r'
+    
+    # Next, color the edges, which at this stage will always be red
+    for edge in graph.edges:
+        graph.edges[edge]['color'] = 'r'
+
+    return graph
+
+
+# This takes in a graph and colors it according to my color
+# definitions
+def color_edges(graph, list_of_entangles):
+    
+    for node1, node2 in graph.edges():
+
+        if (node1, node2) in list_of_entangles:
+            graph.edges[node1, node2]['color'] = 'r'
+        elif (node2, node1) in list_of_entangles:
+            graph.edges[node1, node2]['color'] = 'r'
+        else:
+            graph.edges[node1, node2]['color'] = 'g'
+
+
+    return graph
 
 
 #This function finds the green nodes
@@ -138,8 +229,28 @@ def import_lattice():
     for index, row in HH_edges_info.iterrows():
 
         lattice_graph.add_edge(row['Node1'], row['Node2'])
-    
+
     return lattice_graph
+
+
+# This takes in a lattice and colors it
+def color_lattice(graph, QUBO):
+
+    HH_node_info = read_csv(HH_nodes_filepath, skiprows=1)
+
+    # First, turn everything black
+    for index, row in HH_node_info.iterrows():
+        graph.nodes[index]['pos'] = (row['x_coor'], row['y_coor'])
+        graph.nodes[index]['size'] = 100
+        graph.nodes[index]['color'] = 'k'
+
+    # Then, change the colors to match the colors of the QUBO graph
+    for node in QUBO.nodes:
+        embed = QUBO.nodes[node]['embedded']
+        graph.nodes[embed]['color'] = QUBO.nodes[node]['color']
+        graph.nodes[embed]['size'] = 300
+
+    return graph
 
 
 """

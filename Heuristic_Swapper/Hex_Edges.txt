@@ -1,4 +1,4 @@
-# Heavy Hex Lattice Edge List
+#Hex Lattice Edge List
 Node1,Node2
 0,1
 0,5

@@ -17,9 +17,11 @@ import time
 Functions to Create the Graphs
 """
 
-# Paths to the HH lattice data files
-HH_nodes_filepath = "./Original_Swap_Program/HH_Nodes.txt"
-HH_edges_filepath = "./Original_Swap_Program/HH_Edges.txt"
+# Paths to the lattice data files
+Heavy_Hex_nodes_filepath = "./Heuristic_Swapper/Heavy_Hex_Nodes.txt"
+Heavy_Hex_edges_filepath = "./Heuristic_Swapper/Heavy_Hex_Edges.txt"
+Hex_nodes_filepath = "./Heuristic_Swapper/Hex_Nodes.txt"
+Hex_edges_filepath = "./Heuristic_Swapper/Hex_Edges.txt"
 
 # This function takes the number of nodes and the file path as input
 # It then makes a nx graph from the user input
@@ -78,6 +80,97 @@ def make_3reg_graph(num_nodes):
     return graph, num_nodes, num_edges, list_nodes
 
 
+# This takes in a graph and colors it according to my color
+# definitions
+def color_graph(graph):
+    # Green qubits count as placed, because they will be put on in specific
+    # spots at the end
+
+    # First, turn everything yellow
+    for node in graph.nodes:
+        graph.nodes[node]['color'] = 'y'
+
+    # Second, find the end nodes and the end tails
+    for node in graph.nodes:
+        # Blue means unconnected
+        if graph.degree[node] == 0:
+            graph.nodes[node]['color'] = 'b'
+
+        # Upon finding an end node, trace it back until there's a node of degree
+        # greater than 2
+        elif graph.degree[node] == 1:
+            graph.nodes[node]['green'] = True
+            graph.nodes[node]['color'] = 'g'
+            graph.nodes[node]['tail_end'] = True
+
+            cur_node = node
+            prev_nodes = [node]
+            in_tail = True
+            while in_tail:
+
+                # See if the next node in the trail is degree two
+                for next_node in nx.neighbors(graph, cur_node):
+                    #print(f"Node #{cur_node}, Neighbor #{next_node}")
+
+                    # This is node from previously up the chain.
+                    # It's boring and we want to skip it so we go further
+                    # down the end tail chain
+                    if next_node in prev_nodes:
+                        #print(f"Node {next_node} was skipped")
+                        continue
+
+                    elif graph.degree[next_node] == 2:
+                        #print(f"Node {next_node} was colored")
+                        graph.nodes[next_node]['green'] = True
+                        graph.nodes[next_node]['color'] = 'g'
+                        prev_nodes.append(next_node)
+                        cur_node = next_node
+                        break
+
+                    # Else break out of the loop, you've reached the end of the
+                    # tail
+                    else:
+                        #print("End of chain")
+                        graph.nodes[cur_node]['tail_start'] = True
+                        in_tail = False
+
+    # Third, color the max degree nodes red
+    max_degree = max(graph.degree, key=lambda x: x[1])[1]
+
+    # If the max is less than 3, it doesn't matter because the entanglement
+    # is a chain
+    max_degree = max(max_degree, 3)
+
+    # Checks if it is the node with the max degree
+    for node in graph.nodes:
+
+        if graph.degree[node] == max_degree:
+            graph.nodes[node]['color'] = 'r'
+    
+    # Next, color the edges, which at this stage will always be red
+    for edge in graph.edges:
+        graph.edges[edge]['color'] = 'r'
+
+    return graph
+
+
+# This takes in a graph and colors it according to my color
+# definitions
+def color_edges(graph, list_of_entangles):
+    
+    for node1, node2 in graph.edges():
+
+        if (node1, node2) in list_of_entangles:
+            graph.edges[node1, node2]['color'] = 'r'
+        elif (node2, node1) in list_of_entangles:
+            graph.edges[node1, node2]['color'] = 'r'
+        else:
+            graph.edges[node1, node2]['color'] = 'g'
+
+
+    return graph
+
+
 #This function finds the green nodes
 def find_greens(graph):
 
@@ -123,23 +216,50 @@ def find_greens(graph):
 
 
 # This makes the qubit lattice from an imported file
-def import_lattice():
+def import_lattice(lattice_geo):
     # This will just be a premade lattice with a certain number of qubits
 
-    HH_node_info = read_csv(HH_nodes_filepath, skiprows=1)
-    HH_edges_info = read_csv(HH_edges_filepath, skiprows=1)
+    if lattice_geo == "Heavy Hex":
+        lattice_node_info = read_csv(Heavy_Hex_nodes_filepath, skiprows=1)
+        lattice_edges_info = read_csv(Heavy_Hex_edges_filepath, skiprows=1)
+    if lattice_geo == "Hex":
+        lattice_node_info = read_csv(Hex_nodes_filepath, skiprows=1)
+        lattice_edges_info = read_csv(Hex_edges_filepath, skiprows=1)
 
     lattice_graph = nx.Graph()
 
-    for index, row in HH_node_info.iterrows():
+    for index, row in lattice_node_info.iterrows():
 
         lattice_graph.add_node(index, qubit=-1)
 
-    for index, row in HH_edges_info.iterrows():
+    for index, row in lattice_edges_info.iterrows():
 
         lattice_graph.add_edge(row['Node1'], row['Node2'])
     
     return lattice_graph
+
+
+# This takes in a lattice and colors it
+def color_lattice(graph, QUBO, lattice_geo):
+
+    if lattice_geo == "Heavy Hex":
+        lattice_node_info = read_csv(Heavy_Hex_nodes_filepath, skiprows=1)
+    if lattice_geo == "Hex":
+        lattice_node_info = read_csv(Hex_nodes_filepath, skiprows=1)
+
+    # First, turn everything black
+    for index, row in lattice_node_info.iterrows():
+        graph.nodes[index]['pos'] = (row['x_coor'], row['y_coor'])
+        graph.nodes[index]['size'] = 100
+        graph.nodes[index]['color'] = 'k'
+
+    # Then, change the colors to match the colors of the QUBO graph
+    for node in QUBO.nodes:
+        embed = QUBO.nodes[node]['embedded']
+        graph.nodes[embed]['color'] = QUBO.nodes[node]['color']
+        graph.nodes[embed]['size'] = 300
+
+    return graph
 
 
 """
@@ -688,7 +808,7 @@ def reconstruct_qubo(embeds, graph_to_construct):
 
 
 # This is the code to iterate through trial graphs to find the best solution
-def iterate_through(lattice_Graph, QUBO_Graph, iterations):
+def iterate_through(lattice_Graph, QUBO_Graph, iterations, lattice_geo):
 
     # First thing to do is save all the original variables
     original_QUBO = copy.deepcopy(QUBO_Graph)
@@ -705,9 +825,25 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
     best_move_list = []
     best_swap_num = 10000000
 
+    # The variables that determine what a good graph is as a function of the
+    # total number of entanglements
+    #  0.5 * num_entangles and graph_dist < 1.5 * num_entangles:
+    if lattice_geo == "Heavy Hex":
+        init_entangles_scaler = 1.5
+        init_graph_dist_scaler = 2.2
+    
+    elif lattice_geo == "Hex":
+        init_entangles_scaler = 0.5
+        init_graph_dist_scaler = 1.5
+
+    else:
+        init_entangles_scaler = 0.5
+        init_graph_dist_scaler = 1.5
+        print("Warning, unknown lattice shape!!")
+
     # Variables for testing things
     num_entangles = len(QUBO_Graph.edges)
-    #init_entangles = []
+    init_entangles = []
     graph_distance_list = []
     ave_swap_list = []
     attempts_array = []
@@ -765,12 +901,14 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             # of calculating these for any given graph with any number of nodes. It will probably
             # require reformulating a lot of this in terms of swaps/entangle, which will increase
             # as the number of nodes increases
-            if len(entangles_to_do) <= 0.5 * num_entangles and graph_dist < 1.5 * num_entangles:
+            if len(entangles_to_do) <= init_entangles_scaler * num_entangles and graph_dist < init_graph_dist_scaler * num_entangles:
 
-                #print(f"A good graph was found after {attempts} attempts")
+                #print(f"A good graph was found after {attempts} attempts on iteration {total_iter_num}")
                 attempts_array.append(attempts)
 
-                #init_entangles_value = num_entangles - len(entangles_to_do)
+                # These arrays store useful information for determining the scalers above
+                init_entangles_value = num_entangles - len(entangles_to_do)
+                init_entangles.append(init_entangles_value)
                 graph_distance_list.append(graph_dist)
 
                 template_QUBO = copy.deepcopy(QUBO_Graph)
@@ -778,7 +916,22 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
                 template_entangles_to_do = copy.copy(entangles_to_do)
 
                 break
-                
+
+                """
+                elif attempts > 99:
+                    
+                    #print(f"Could not find a good graph with 100 attempts")
+                    attempts_array.append(attempts)
+
+                    #init_entangles_value = num_entangles - len(entangles_to_do)
+                    graph_distance_list.append(graph_dist)
+
+                    template_QUBO = copy.deepcopy(QUBO_Graph)
+                    template_lattice = copy.deepcopy(lattice_Graph)
+                    template_entangles_to_do = copy.copy(entangles_to_do)
+
+                    break
+                """
             else:
                 attempts += 1
 
@@ -801,9 +954,6 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             move_list = copy.copy(original_move_list)
             move_list_key = copy.copy(original_move_list_key)
 
-            # Mark down the initial entangles here, because it was successful
-            #init_entangles.append(init_entangles_value)
-
             while not solved:
 
                 # Do the swaps
@@ -819,8 +969,8 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
                 move_list_key.extend(move_key)
 
                 # If we have already gone past the best swap num, immediately stop
-                if swap_num >= best_swap_num:
-                    break
+                #if swap_num >= best_swap_num:
+                #    break
                 
                 # If all the entanglments are done, quit
                 if not entangles_to_do:
@@ -859,4 +1009,4 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations):
             #print(f"\tThe average number of swap to solve this graph is {ave_swaps}")
     
     print(f"The average number of bad graphs that were generated is {np.average(np.array(attempts_array)) - 1}")
-    return best_move_list, best_move_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, total_iter_num, graph_distance_list, ave_swap_list
+    return best_move_list, best_move_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, total_iter_num, graph_distance_list, init_entangles, ave_swap_list
