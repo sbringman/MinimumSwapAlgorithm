@@ -87,10 +87,10 @@ def makeLatticePlot(graph):
     axLat = plt.axes(facecolor='w')
     axLat.set_axis_off()
 
-    # Draw HH lattice
+    # Draw lattice
     nx.draw_networkx(graph, pos=graph.nodes.data('pos'), node_color=color_array, node_size=size_array, labels=labels)
 
-    plt.savefig("Fig", dpi=2400)
+    #plt.savefig("Fig", dpi=2400)
 
     return fig
 
