@@ -969,8 +969,8 @@ def iterate_through(lattice_Graph, QUBO_Graph, iterations, lattice_geo):
                 move_list_key.extend(move_key)
 
                 # If we have already gone past the best swap num, immediately stop
-                #if swap_num >= best_swap_num:
-                #    break
+                if swap_num >= best_swap_num:
+                    break
                 
                 # If all the entanglments are done, quit
                 if not entangles_to_do:
