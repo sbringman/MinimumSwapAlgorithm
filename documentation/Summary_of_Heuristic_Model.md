@@ -31,7 +31,7 @@ This program finds the minimum swaps to entangle qubits to solve a QUBO problem.
 4. If a graph is not accepted and fails to meet the conditions, delete the graph. Restart from Placement Step 1 to get a fresh mapping. If the graph does pass the conditions and is accepted, proceed to the entanglement step.
 
 ### Entanglement Step
-1. Each every edge of the lattice. If the qubits connected by that edge are on the list of qubits that need to be entangled, mark that they are entangled. If swapping the two qubits would lower the distance function of the graph, mark them to recheck later.
+1. Check every edge of the lattice. If the qubits connected by that edge are on the list of qubits that need to be entangled, mark that they are entangled. If swapping the two qubits would lower the distance function of the graph, mark them to recheck later.
 2. Once all the possible entanglements have been found, go back through the list of pairs of qubits that would reduce the distance function if swapped. Check again that the qubits are next to each other and if they would still reduce the distance function if swapped. If both of these are true, swap the qubits. This is a free swap that is combined with the entanglement gate.
 
 ### Swapping Step
