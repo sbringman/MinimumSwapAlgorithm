@@ -803,7 +803,7 @@ def reconstruct_qubo(embeds, graph_to_construct):
 def iterate_through(lattice_Graph, 
                     QUBO_Graph, 
                     iterations, 
-                    early_truncate,
+                    no_truncate,
                     init_entangles_frac,
                     init_graph_dist,
                     ):
@@ -839,7 +839,7 @@ def iterate_through(lattice_Graph,
         # We should only generate graphs that would work well, so don't break out of this
         # loop until we have one that does
         # Once we find a graph that works well, we'll just run that graph a bunch of times
-        attempts = 1
+        attempts = 0
 
         while True:
 
@@ -944,15 +944,15 @@ def iterate_through(lattice_Graph,
                 move_list += new_swap_list
                 move_list_key.extend(["s" for swap in new_swap_list])
 
+                # If we have already gone past the best swap num, immediately stop
+                if swap_num >= best_swap_num and not no_truncate:
+                    break
+
                 # Get the current entanglements
                 lattice_Graph, QUBO_Graph, entangles_to_do, entangles_done, move_key = get_current_entangles(lattice_Graph, QUBO_Graph, entangles_to_do, all_path_lengths)
                 #print(entangles_done)
                 move_list.extend(entangles_done)
                 move_list_key.extend(move_key)
-
-                # If we have already gone past the best swap num, immediately stop
-                if swap_num >= best_swap_num and early_truncate:
-                    break
                 
                 # If all the entanglments are done, quit
                 if not entangles_to_do:
@@ -960,7 +960,6 @@ def iterate_through(lattice_Graph,
                     #print(f"Finished solving attempt {i + 1} - {swap_num} swap_num")
 
             # Stuff done after the graphs are finished
-            # We don't want to count early breaks as part of the average swap number
             list_of_swap_nums.append(swap_num)
             moves_to_solve.append(swap_num)
 
@@ -990,5 +989,5 @@ def iterate_through(lattice_Graph,
             ave_swap_list.append(ave_swaps)
             #print(f"\tThe average number of swap to solve this graph is {ave_swaps}")
     
-    print(f"The average number of bad graphs that were generated is {np.average(np.array(attempts_array)) - 1}")
+    print(f"The average number of bad graphs that were generated is {np.average(np.array(attempts_array))}")
     return best_move_list, best_move_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, total_iter_num, graph_distance_list, init_entangles, ave_swap_list, attempts_array

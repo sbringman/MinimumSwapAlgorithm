@@ -198,12 +198,17 @@ if args.verbose:
 
     init_ent_v_swap = gui_func.init_entangles_frac_v_swap_num(init_entangles, num_edges, ave_swap_list)
     init_ent_v_swap.show()
+    #init_ent_v_swap.savefig("init_ent_v_swap.png", dpi = 2000)
 
     graph_dist_v_ave_swaps = gui_func.graph_distance_v_ave_swaps(graph_distance, ave_swap_list)
     graph_dist_v_ave_swaps.show()
+    #graph_dist_v_ave_swaps.savefig("graph_dist_v_ave_swaps.png", dpi = 2000)
 
     attempts_hist = gui_func.makeAttemptHist(attempts)
     attempts_hist.show()
+
+    #spiral_image = gui_func.makePlacementSpiralImage(lattice_Graph)
+    #spiral_image.show()
 
 
 

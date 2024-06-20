@@ -107,3 +107,24 @@ def makeAttemptHist(attempts):
     plt.tight_layout()
 
     return fig
+
+
+# Function to make the qubit lattice plot
+def makePlacementSpiralImage(graph):
+
+    # The lattice graph should always be colored by the time this is called
+    color_array = list('#3c75aa' for i in graph.nodes())
+    size_array = list(200 for i in graph.nodes())
+    labels = {i: i for i in graph.nodes()}
+
+    # Make and show plot
+    # This plot has a number to differentiate from the QUBO graph
+    fig = plt.figure('Lattice Graph', figsize=(4, 3.5))
+
+    axLat = plt.axes(facecolor='w')
+    axLat.set_axis_off()
+
+    # Draw lattice
+    nx.draw_networkx(graph, pos=graph.nodes.data('pos'), node_color=color_array, node_size=size_array, labels=labels)
+
+    return fig
