@@ -26,12 +26,12 @@ options:
                         'Hex' for hexagonal or 'HHex' for a heavy hexagonal structure. (default: HHex)
   -i ITERATIONS, --iterations ITERATIONS
                         The number of attempts to find the minimum swap path. (default: 1_000)
-  -ies INIT_ENTANGLES_FRAC, --init_entangles_frac INIT_ENTANGLES_FRAC
+  -ef INIT_ENTANGLES_FRAC, --init_entangles_frac INIT_ENTANGLES_FRAC
                         When a candidate starting position is generated, a minimum fraction of qubit
                         pairs must be able to be entangled without using any SWAP gates or free swaps. If
                         not, a new starting position is generated. This fraction is given by the value of
-                        this argument. (default: 1.0)
-  -gds INIT_GRAPH_DIST, --init_graph_dist INIT_GRAPH_DIST
+                        this argument. (default: 0.0)
+  -gd INIT_GRAPH_DIST, --init_graph_dist INIT_GRAPH_DIST
                         When a candidate starting position is generated, the 'distance function' of the
                         position is calculated. The distance function of the graph must be less than the
                         value of this argument to be accepted. If the candidate position has a distance

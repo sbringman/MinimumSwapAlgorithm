@@ -11,6 +11,8 @@ import networkx as nx
 import random
 from pandas import read_csv
 import copy
+import os
+import qiskit.qasm2
 
 """
 Functions to Create the Graphs
@@ -22,6 +24,22 @@ Heavy_Hex_edges_filepath = "./Lattice_Graphs/Heavy_Hex_Edges.txt"
 Hex_nodes_filepath = "./Lattice_Graphs/Hex_Nodes.txt"
 Hex_edges_filepath = "./Lattice_Graphs/Hex_Edges.txt"
 
+
+def qasm_converter(filepath) -> list:
+    circuit_gates = []
+    qasm_circ = qiskit.qasm2.load(filepath)
+
+    for gate in qasm_circ:
+        if gate.operation.num_qubits == 2:
+            if sorted((gate.qubits[0]._index, gate.qubits[1]._index)) not in circuit_gates:
+                circuit_gates.append(sorted((gate.qubits[0]._index, gate.qubits[1]._index)))
+        if gate.operation.num_qubits > 2:
+            print("Three or more qubit gate found.")
+            print("Exiting program...")
+            quit()
+
+    return circuit_gates
+
 # This function takes the number of nodes and the file path as input
 # It then makes a nx graph from the user input
 # It returns the graph, along with information about the nodes and edges
@@ -32,11 +50,28 @@ def make_qubo_graph(filepath):
     # Generates the nodes
     graph = nx.Graph()
 
-    QUBO_edges_info = read_csv(filepath, skiprows=1)
+    filename, file_extension = os.path.splitext(filepath)
 
-    for index, row in QUBO_edges_info.iterrows():
-        graph.add_edge(row['Node1'], row['Node2'])
+    # txt file extraction
+    if file_extension == ".txt":
+
+        QUBO_edges_info = read_csv(filepath, skiprows=1)
+
+        for index, row in QUBO_edges_info.iterrows():
+            graph.add_edge(row['Node1'], row['Node2'])
     
+    elif file_extension == ".qasm":
+        QUBO_edges = qasm_converter(filepath)
+
+        for edge in QUBO_edges:
+            graph.add_edge(edge[0], edge[1])
+
+    else:
+        print("Input file not recognized.")
+        print("Exiting program...")
+        quit()
+
+
     for node in graph.nodes:
         graph.nodes[node]['green'] = False
         graph.nodes[node]['placed'] = False
@@ -822,6 +857,7 @@ def iterate_through(lattice_Graph,
     list_of_swap_nums = []
     best_move_list = []
     best_swap_num = 10000000 # temporary impossibly high number
+    overflow_strikes = 0 # How many times the generator can fail to generate a good graph before the program quits
 
     # Variables for testing things
     num_entangles = len(QUBO_Graph.edges)
@@ -877,7 +913,7 @@ def iterate_through(lattice_Graph,
             #print(f"The total graph distance of this graph is {graph_dist}")
 
             # If not enough entanglements were made with the intial configuration, end the attempt
-            if len(entangles_to_do)/num_entangles <= init_entangles_frac and graph_dist <= init_graph_dist:
+            if (num_entangles - len(entangles_to_do))/num_entangles >= init_entangles_frac and graph_dist <= init_graph_dist:
 
                 #print(f"A good graph was found after {attempts} attempts on iteration {total_iter_num}")
                 attempts_array.append(attempts)
@@ -895,24 +931,19 @@ def iterate_through(lattice_Graph,
 
 
             elif attempts > 99:
+
+                if overflow_strikes >= 3:
                 
-                print("Could not find a good graph with 100 attempts.")
-                print("This means that the restrictions placed on the graph generation process are "
-                      "too constrictive.")
-                print("It is recommended that the initial entanglements scalar and/or the "
-                      "graph distance scalar be increased using the -ies and/or -gds arguments.")
-                print("Exiting program...\n")
-                quit()
-                attempts_array.append(attempts)
-
-                #init_entangles_value = num_entangles - len(entangles_to_do)
-                graph_distance_list.append(graph_dist)
-
-                template_QUBO = copy.deepcopy(QUBO_Graph)
-                template_lattice = copy.deepcopy(lattice_Graph)
-                template_entangles_to_do = copy.copy(entangles_to_do)
-
-                break
+                    print("Could not find a good graph with 100 attempts.")
+                    print("This means that the restrictions placed on the graph generation process are "
+                        "too constrictive.")
+                    print("It is recommended that the initial entanglements scalar and/or the "
+                        "graph distance scalar be increased using the -ef and/or -gs arguments.")
+                    print("Exiting program...\n")
+                    quit()
+                else:
+                    overflow_strikes += 1
+                    attempts = 0
 
             else:
                 attempts += 1
@@ -984,10 +1015,9 @@ def iterate_through(lattice_Graph,
         
         total_iter_num += num_trials
 
-        if graph_iter_num == num_trials:
-            ave_swaps = np.average(np.array(moves_to_solve))
-            ave_swap_list.append(ave_swaps)
-            #print(f"\tThe average number of swap to solve this graph is {ave_swaps}")
+        ave_swaps = np.average(np.array(moves_to_solve))
+        ave_swap_list.append(ave_swaps)
+        #print(f"\tThe average number of swap to solve this graph is {ave_swaps}")
     
     print(f"The average number of bad graphs that were generated is {np.average(np.array(attempts_array))}")
     return best_move_list, best_move_key, list_of_swap_nums, best_lattice_nodes, best_qubo_embed, total_iter_num, graph_distance_list, init_entangles, ave_swap_list, attempts_array

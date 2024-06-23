@@ -23,6 +23,10 @@ This is the code that will run the minimum swap algorithm a sufficient number of
         it does reduce the number of bad graphs per good graph from 26 to 10, which is a success.
         The next step will be to have it get better at reducing the distance. One way to do this
         might be to have it be able to move qubits to a different spot, instead of just swapping them.
+    Make the code run in parallel
+    Have the computer dynamically adjust the initial condition settings
+    After producing a final solution, go back and find if there are any swaps between qubits that
+        previously went through a gate together without a free swap.
 """
 """
 Arguments: 
@@ -56,13 +60,13 @@ parser.add_argument('-a', '--architecture', choices=["Hex", "HHex"], default="HH
 parser.add_argument('-i', '--iterations', default=1_000, type=int,
                     help="The number of attempts to find the minimum swap path.\n"
                     "(default: 1_000)")
-parser.add_argument('-ies', '--init_entangles_frac', default=1.0, type=float,
+parser.add_argument('-ef', '--init_entangles_frac', default=0.0, type=float,
                     help="When a candidate starting position is generated, a minimum "
                     "fraction of qubit pairs must be able to be entangled without using any "
                     "SWAP gates or free swaps. If not, a new starting position is generated.\n"
                     "This fraction is given by the value of this argument.\n"
-                    "(default: 1.0)")
-parser.add_argument('-gds', '--init_graph_dist', default=10_000, type=float,
+                    "(default: 0.0)")
+parser.add_argument('-gd', '--init_graph_dist', default=10_000, type=float,
                     help="When a candidate starting position is generated, the \'distance function\' "
                     "of the position is calculated. The distance function of the graph must be less than "
                     "the value of this argument to be accepted. If the candidate position has a distance "
@@ -79,7 +83,6 @@ parser.add_argument('-v', '--verbose', action='store_true', default=False,
                     "(default: False)")
 
 args = parser.parse_args()
-print(args.filename, args.threeReg, args.architecture, args.verbose)
 
 
 """
@@ -110,7 +113,6 @@ print("Creating lattice graph...")
 # qubit: the number of the node of the QUBO graph that has been
 #        placed at that node
 lattice_Graph = ofs.import_lattice(args.architecture)
-
 
 """
 Preparing Variable Graph
@@ -159,21 +161,16 @@ ave_swaps = round(np.average(np.array(list_of_swap_nums)), 3)
 end_time = time.perf_counter()
 run_time = round(end_time - start_time, ndigits=2)
 
-print(f"# of qubits: {num_nodes}")
-print(f"# of entanglements: {num_edges}")
-print(f"Runtime: {run_time} seconds")
-print(f"Averaged runtime per trial: {round((run_time / iterations) * 1000, ndigits=3)} ms")
-print(f"Minimum Swaps Needed: {best_swap}")
 print()
 print("Best Move List (move #, variables, action):")
 
 for i, (move, key) in enumerate(zip(best_moves_list, best_moves_key)):
     if key == "g":
-        print(f"{i}. {move} - Apply gate")
+        print(f"{i+1}. {move} - Apply gate")
     elif key == "f":
-        print(f"{i}. {move} - Apply gate with free swap")
+        print(f"{i+1}. {move} - Apply gate with free swap")
     elif key == "s":
-        print(f"{i}. {move} - Swap")
+        print(f"{i+1}. {move} - Swap")
     else:
         print("Error")
 
@@ -211,8 +208,15 @@ if args.verbose:
     #spiral_image.show()
 
 
+print()
+print(f"# of qubits: {num_nodes}")
+print(f"# of entanglements: {num_edges}")
+print(f"Runtime: {run_time} seconds")
+print(f"Averaged runtime per trial: {round((run_time / iterations) * 1000, ndigits=3)} ms")
+print(f"Minimum Swaps Needed: {best_swap}")
 
 
+print()
 print("Press Enter to finish...")
 input()
 quit()
